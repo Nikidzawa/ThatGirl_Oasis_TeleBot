@@ -21,6 +21,7 @@ public class DataBaseService {
         return userRepository.findFirstById(id);
     }
 
-
-
+    public void saveUser (UserEntity user) {
+        userRepository.saveAndFlush(user);
+    }
 }

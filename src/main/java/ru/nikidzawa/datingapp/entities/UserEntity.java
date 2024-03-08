@@ -16,6 +16,11 @@ import java.io.Serializable;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserEntity implements Serializable {
+
+    public UserEntity (Long id) {
+        this.id = id;
+    }
+
     @Id
     Long id;
 

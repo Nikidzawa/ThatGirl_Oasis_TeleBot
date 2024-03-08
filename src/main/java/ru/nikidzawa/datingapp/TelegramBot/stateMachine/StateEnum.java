@@ -4,9 +4,11 @@ package ru.nikidzawa.datingapp.TelegramBot.stateMachine;
 public enum StateEnum {
     //Ошибки
     CHECK_GROUP_MEMBER,
+    FORMAT_EXCEPTION,
 
     //Регистрация
     START,
+    PRE_REGISTER,
     ASK_NAME,
     ASK_AGE,
     ASK_CITY,
