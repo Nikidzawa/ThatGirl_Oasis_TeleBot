@@ -12,4 +12,5 @@ import ru.nikidzawa.datingapp.entities.UserEntity;
 public class UserAndState {
     UserEntity user;
     StateEnum stateEnum;
+    boolean hasBeenRegistered;
 }

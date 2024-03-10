@@ -26,15 +26,15 @@ public class CacheService {
         cacheManager.getCache("states").evict(userId);
     }
 
-    public UserEntity getEditUser (Long userId) {
-        return (UserEntity) cacheManager.getCache("edit_user").get(userId).get();
+    public UserEntity getCachedUser(Long userId) {
+        return (UserEntity) cacheManager.getCache("cached_user").get(userId).get();
     }
 
-    public void putEditUser (Long userId, UserEntity user) {
-        cacheManager.getCache("edit_user").put(userId, user);
+    public void putCachedUser(Long userId, UserEntity user) {
+        cacheManager.getCache("cached_user").put(userId, user);
     }
 
-    public void evictEditUser (Long userId) {
-        cacheManager.getCache("edit_user").evict(userId);
+    public void evictCachedUser(Long userId) {
+        cacheManager.getCache("cached_user").evict(userId);
     }
 }

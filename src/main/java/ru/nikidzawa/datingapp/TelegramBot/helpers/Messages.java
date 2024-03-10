@@ -7,6 +7,44 @@ import org.springframework.stereotype.Component;
 @Getter
 @Component
 public class Messages {
+
+    //
+    @Value("${LEFT}")
+    String LEFT;
+
+    @Value("${ASK_BEFORE_OFF}")
+    String ASK_BEFORE_OFF;
+
+
+    //Изменение
+    @Value("${EDIT_NAME}")
+    String EDIT_NAME;
+
+    @Value("${EDIT_AGE}")
+    String EDIT_AGE;
+
+    @Value("${EDIT_CITY}")
+    String EDIT_CITY;
+
+    @Value("${EDIT_PHOTO}")
+    String EDIT_PHOTO;
+
+    @Value("${NULL_DATA_EDIT}")
+    String NULL_DATA_EDIT;
+
+    @Value("${EDIT_RESULT}")
+    String EDIT_RESULT;
+
+    @Value("${UNEDITED_PHOTO}")
+    String UNEDITED_PHOTO;
+
+    @Value("${UNEDITED_HOBBY}")
+    String UNEDITED_HOBBY;
+
+    @Value("${UNEDITED_ABOUT_ME}")
+    String UNEDITED_ABOUT_ME;
+
+    //Регистрация
     @Value("${ASK_NAME}")
     String ASK_NAME;
 
@@ -19,9 +57,6 @@ public class Messages {
     @Value("${ASK_HOBBY}")
     String ASK_HOBBY;
 
-    @Value("${ASK_SPEND_TIME}")
-    String ASK_SPEND_TIME;
-
     @Value("${ASK_ABOUT_ME}")
     String ASK_ABOUT_ME;
 
@@ -31,12 +66,33 @@ public class Messages {
     @Value("${RESULT}")
     String RESULT;
 
-    @Value("${LEFT}")
-    String LEFT;
 
+    //Меню
+    @Value("${MENU}")
+    String MENU;
+    @Value("${EDIT_PROFILE}")
+    String EDIT_PROFILE;
+
+
+    //Ошибки
     @Value("${INVALID_FORMAT_EXCEPTION}")
     String INVALID_FORMAT_EXCEPTION;
 
     @Value("${IS_NOT_A_NUMBER_EXCEPTION}")
     String IS_NOT_A_NUMBER_EXCEPTION;
+
+    @Value("${AGE_LIMIT_SYMBOLS_EXCEPTIONS}")
+    String AGE_LIMIT_SYMBOLS_EXCEPTIONS;
+
+    @Value("${NAME_LIMIT_SYMBOLS_EXCEPTIONS}")
+    String NAME_LIMIT_SYMBOLS_EXCEPTIONS;
+
+    @Value("${HOBBY_LIMIT_SYMBOLS_EXCEPTIONS}")
+    String HOBBY_LIMIT_SYMBOLS_EXCEPTIONS;
+
+    @Value("${ABOUT_ME_LIMIT_SYMBOLS_EXCEPTIONS}")
+    String ABOUT_ME_LIMIT_SYMBOLS_EXCEPTIONS;
+
+    @Value("${CITY_LIMIT_SYMBOLS_EXCEPTIONS}")
+    String CITY_LIMIT_SYMBOLS_EXCEPTIONS;
 }

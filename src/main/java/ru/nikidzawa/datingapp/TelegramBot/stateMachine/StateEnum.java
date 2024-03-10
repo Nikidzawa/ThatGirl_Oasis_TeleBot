@@ -2,9 +2,8 @@ package ru.nikidzawa.datingapp.TelegramBot.stateMachine;
 
 
 public enum StateEnum {
-    //Ошибки
+    //
     CHECK_GROUP_MEMBER,
-    FORMAT_EXCEPTION,
 
     //Регистрация
     START,
@@ -13,15 +12,31 @@ public enum StateEnum {
     ASK_AGE,
     ASK_CITY,
     ASK_HOBBY,
-    ASK_SPEND_TIME,
     ASK_ABOUT_ME,
     ASK_PHOTO,
     RESULT,
 
+    //Редактирование профиля
+    EDIT_PROFILE,
+    //
+    EDIT_NAME,
+    EDIT_AGE,
+    //
+    EDIT_CITY,
+    //
+    EDIT_HOBBY,
+    EDIT_ABOUT_ME,
+    //
+    EDIT_PHOTO,
+    //
+    EDIT_RESULT,
 
-    //Выход
+    //Выход из группы или отключение анкеты
     LEFT,
+    ASK_BEFORE_OFF,
+    WELCOME_BACK,
 
     //Действия из меню
     MENU,
+    PROFILE,
 }

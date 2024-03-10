@@ -3,10 +3,12 @@ package ru.nikidzawa.datingapp.entities;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Entity
 @Getter
@@ -24,19 +26,27 @@ public class UserEntity implements Serializable {
     @Id
     Long id;
 
+    @Column(length = 100)
     String name;
 
+    @Column(length = 100)
     int age;
 
+    @Column(length = 100)
     String city;
 
+    @Column(length = 150)
     String hobby;
 
-    String spendYourTime;
-
+    @Column(length = 1000)
     String aboutMe;
 
     String photo;
 
     Boolean isActive = false;
+
+    Boolean isBanned = false;
+
+    @OneToMany
+    List<UserEntity> LikedMe;
 }

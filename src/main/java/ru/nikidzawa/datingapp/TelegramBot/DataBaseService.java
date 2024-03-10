@@ -2,6 +2,7 @@ package ru.nikidzawa.datingapp.TelegramBot;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import ru.nikidzawa.datingapp.entities.UserEntity;
@@ -21,7 +22,9 @@ public class DataBaseService {
         return userRepository.findFirstById(id);
     }
 
-    public void saveUser (UserEntity user) {
+    @CachePut(key = "#user.id")
+    public UserEntity saveUser (UserEntity user) {
         userRepository.saveAndFlush(user);
+        return user;
     }
 }

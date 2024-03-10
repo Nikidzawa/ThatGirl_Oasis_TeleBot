@@ -7,7 +7,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.File;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
-import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
@@ -28,7 +27,7 @@ public class BotFunctions {
     }
 
     @SneakyThrows
-    public void sendMessage (Long id, String message){
+    public void sendMessageAndRemoveMarkup(Long id, String message){
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(id));
         sendMessage.setText(message);
@@ -37,13 +36,55 @@ public class BotFunctions {
     }
 
     @SneakyThrows
-    public void sendMessageMarkup (Long id, String message, List<String> buttonLabels) {
+    public void sendMessageNotRemoveMarkup (Long id, String message){
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(id));
         sendMessage.setText(message);
-        sendMessage.setReplyMarkup(keyboardMarkupBuilder(buttonLabels));
         telegramBot.execute(sendMessage);
     }
+
+    @SneakyThrows
+    public void sendMessageAndMarkup(Long id, String message, ReplyKeyboardMarkup replyKeyboardMarkup) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(String.valueOf(id));
+        sendMessage.setText(message);
+        sendMessage.setReplyMarkup(replyKeyboardMarkup);
+        telegramBot.execute(sendMessage);
+    }
+
+    public ReplyKeyboardMarkup menuButtons() {return keyboardMarkupBuilder(List.of("1", "2", "3"));}
+    public ReplyKeyboardMarkup resultButtons() {return keyboardMarkupBuilder(List.of("Заполнить анкету заново", "Продолжить"));}
+    public ReplyKeyboardMarkup skipButton() {
+        return keyboardMarkupBuilder(List.of("Пропустить"));
+    }
+    public ReplyKeyboardMarkup startButton() {return keyboardMarkupBuilder(List.of("Начнём!"));}
+    public ReplyKeyboardMarkup editProfileButtons() {
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+        replyKeyboardMarkup.setResizeKeyboard(true);
+        replyKeyboardMarkup.setOneTimeKeyboard(true);
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+        KeyboardRow firstRow = new KeyboardRow();
+        firstRow.add("БИО");
+        firstRow.add("Хобби, о себе");
+        firstRow.add("Город");
+        KeyboardRow secondRow = new KeyboardRow();
+        secondRow.add("Фото");
+        KeyboardRow thirdRow = new KeyboardRow();
+        thirdRow.add("Изменить анкету полностью");
+        thirdRow.add("Вернуться в меню");
+        keyboardRows.add(firstRow);
+        keyboardRows.add(secondRow);
+        keyboardRows.add(thirdRow);
+        replyKeyboardMarkup.setKeyboard(keyboardRows);
+        return replyKeyboardMarkup;
+    }
+    public ReplyKeyboardMarkup askBeforeOffButtons() {return keyboardMarkupBuilder(List.of("Выключить анкету", "Я передумала"));}
+    public ReplyKeyboardMarkup editResultButtons() {return keyboardMarkupBuilder(List.of("Сохранить", "Отменить"));}
+    public ReplyKeyboardMarkup customButton(String button) {return keyboardMarkupBuilder(List.of(button));}
+    public ReplyKeyboardMarkup skipAndCustomButtons(String button) {return keyboardMarkupBuilder(List.of(button, "Пропустить"));}
+    public ReplyKeyboardMarkup removeAndCustomButtons(String button) {return keyboardMarkupBuilder(List.of(button, "Убрать"));}
+    public ReplyKeyboardMarkup welcomeBackButton() {return keyboardMarkupBuilder(List.of("Включить анкету"));}
+
 
     private ReplyKeyboardMarkup keyboardMarkupBuilder(List<String> buttonLabels) {
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
@@ -77,10 +118,24 @@ public class BotFunctions {
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setChatId(userId);
         sendPhoto.setPhoto(inputFile);
-        sendPhoto.setCaption(userEntity.getName() + ", " + userEntity.getAge() + ", " + userEntity.getCity() + "\n"
-                + "Мои хобби: " + userEntity.getHobby() + "\n"
-                + "В свободное время люблю: " + userEntity.getSpendYourTime() + "\n"
-                + "О себе: " + userEntity.getAboutMe());
+        String hobby = userEntity.getHobby();
+        String aboutMe = userEntity.getAboutMe();
+        String profileInfo = userEntity.getName() + ", " + userEntity.getAge() + ", " + userEntity.getCity() +
+                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : "\n\n" + aboutMe);
+        sendPhoto.setCaption(profileInfo);
         telegramBot.execute(sendPhoto);
+    }
+
+    private String parseHobby(String allHobby) {
+        StringBuilder stringBuilder = new StringBuilder();
+        String[] hobbyArray = allHobby.split(",");
+        for (String hobby : hobbyArray) {
+            String trimmedHobby = hobby.trim();
+            if (!trimmedHobby.isEmpty()) {
+                char firstChar = Character.toUpperCase(trimmedHobby.charAt(0));
+                stringBuilder.append("\n").append("● ").append(firstChar).append(trimmedHobby.substring(1));
+            }
+        }
+        return stringBuilder.toString();
     }
 }
