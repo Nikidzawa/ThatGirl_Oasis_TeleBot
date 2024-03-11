@@ -33,7 +33,7 @@ public class UserEntity implements Serializable {
     int age;
 
     @Column(length = 100)
-    String city;
+    String location;
 
     @Column(length = 150)
     String hobby;
@@ -43,9 +43,15 @@ public class UserEntity implements Serializable {
 
     String photo;
 
-    Boolean isActive = false;
+    double longitude;
 
-    Boolean isBanned = false;
+    double latitude;
+
+    boolean isShowGeo = false;
+
+    boolean isActive = false;
+
+    boolean isBanned = false;
 
     @OneToMany
     List<UserEntity> LikedMe;

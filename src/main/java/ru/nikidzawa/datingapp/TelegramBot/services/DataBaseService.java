@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.TelegramBot;
+package ru.nikidzawa.datingapp.TelegramBot.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;

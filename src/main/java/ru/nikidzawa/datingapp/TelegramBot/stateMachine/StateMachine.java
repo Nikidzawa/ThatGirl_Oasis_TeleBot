@@ -2,12 +2,18 @@ package ru.nikidzawa.datingapp.TelegramBot.stateMachine;
 
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+import org.telegram.telegrambots.meta.api.objects.Location;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import ru.nikidzawa.datingapp.TelegramBot.BotFunctions;
-import ru.nikidzawa.datingapp.TelegramBot.DataBaseService;
 import ru.nikidzawa.datingapp.TelegramBot.cache.CacheService;
 import ru.nikidzawa.datingapp.TelegramBot.helpers.Messages;
+import ru.nikidzawa.datingapp.TelegramBot.services.DataBaseService;
+import ru.nikidzawa.datingapp.TelegramBot.services.parser.Geocode;
+import ru.nikidzawa.datingapp.TelegramBot.services.parser.JsonParser;
 import ru.nikidzawa.datingapp.entities.UserEntity;
 
 import java.util.HashMap;
@@ -25,14 +31,22 @@ public class StateMachine {
     @Autowired
     private Messages messages;
 
-    private final HashMap<StateEnum, State> textStates = new HashMap<>();
-    private final HashMap<StateEnum, State> photoStates = new HashMap<>();
+    @Autowired
+    private JsonParser jsonParser;
+
+    private final HashMap<StateEnum, State> textStates;
+    private final HashMap<StateEnum, State> photoStates;
+    private final HashMap<StateEnum, State> locationStates;
 
     @Setter
     public BotFunctions botFunctions;
 
 
     public StateMachine() {
+        textStates = new HashMap<>();
+        photoStates = new HashMap<>();
+        locationStates = new HashMap<>();
+
         textStates.put(StateEnum.START, new StartState());
         textStates.put(StateEnum.WELCOME_BACK, new WelcomeBack());
 
@@ -62,12 +76,20 @@ public class StateMachine {
 
         photoStates.put(StateEnum.ASK_PHOTO, new AskPhoto());
         photoStates.put(StateEnum.EDIT_PHOTO, new EditPhoto());
+
+        locationStates.put(StateEnum.ASK_CITY, new AskCityGeo());
+        locationStates.put(StateEnum.EDIT_CITY, new EditCityGeo());
     }
 
     public void handleInput(StateEnum currentState, Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
         State state = null;
         if (message.hasText() || message.isSuperGroupMessage()) {state = textStates.get(currentState);}
-        else if (message.hasPhoto()) {state = photoStates.get(currentState);}
+        else if (message.hasPhoto()) {
+            state = photoStates.get(currentState);
+        }
+        else if (message.hasLocation()) {
+            state = locationStates.get(currentState);
+        }
 
         if (state != null) {
             state.handleInput(userId, userEntity, message, hasBeenRegistered);
@@ -122,8 +144,8 @@ public class StateMachine {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             if (message.getText().equals("Включить анкету")) {
-                botFunctions.sendMessageAndRemoveMarkup(userId, messages.getMENU());
-                userEntity.setIsActive(true);
+                botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
+                userEntity.setActive(true);
                 dataBaseService.saveUser(userEntity);
                 cacheService.setState(userId, StateEnum.MENU);
             }
@@ -138,17 +160,20 @@ public class StateMachine {
                 botFunctions.sendMessageNotRemoveMarkup(userId, messages.getNAME_LIMIT_SYMBOLS_EXCEPTIONS());
                 return;
             }
-            UserEntity user = cacheService.getCachedUser(userId);
-            user.setName(message.getText());
-            cacheService.putCachedUser(userId, user);
 
             if (hasBeenRegistered) {
-                botFunctions.sendMessageAndMarkup(userId, messages.getASK_CITY(), botFunctions.customButton(userEntity.getCity()));
+                botFunctions.sendMessageAndMarkup(userId, messages.getASK_CITY(), botFunctions.customLocationButtons(userEntity.getLocation()));
             }
             else {
-                botFunctions.sendMessageAndRemoveMarkup(userId, messages.getASK_CITY());
+                botFunctions.sendMessageAndMarkup(userId, messages.getASK_CITY(), botFunctions.locationButton());
             }
-            cacheService.setState(userId, StateEnum.ASK_CITY);
+
+            new Thread(() -> {
+                cacheService.setState(userId, StateEnum.ASK_CITY);
+                UserEntity user = cacheService.getCachedUser(userId);
+                user.setName(message.getText());
+                cacheService.putCachedUser(userId, user);
+            }).start();
         }
     }
 
@@ -160,9 +185,6 @@ public class StateMachine {
                 botFunctions.sendMessageNotRemoveMarkup(userId, messages.getCITY_LIMIT_SYMBOLS_EXCEPTIONS());
                 return;
             }
-            UserEntity user = cacheService.getCachedUser(userId);
-            user.setCity(message.getText());
-            cacheService.putCachedUser(userId, user);
 
             if (hasBeenRegistered) {
                 botFunctions.sendMessageAndMarkup(userId, messages.getASK_AGE(), botFunctions.customButton(String.valueOf(userEntity.getAge())));
@@ -170,6 +192,59 @@ public class StateMachine {
                 botFunctions.sendMessageAndRemoveMarkup(userId, messages.getASK_AGE());
             }
             cacheService.setState(userId, StateEnum.ASK_AGE);
+
+            new Thread(() -> {
+                UserEntity user = cacheService.getCachedUser(userId);
+                user.setLocation(messageText);
+                Geocode coordinates = jsonParser.getGeocode(response(messageText).getBody());
+                user.setLongitude(coordinates.getLon());
+                user.setLatitude(coordinates.getLat());
+                cacheService.putCachedUser(userId, user);
+            }).start();
+        }
+        private ResponseEntity<String> response (String goeObjectName) {
+            String url = "https://nominatim.openstreetmap.org/search?format=json&q=" + goeObjectName + "&addressdetails=1&limit=1&featureType=city";
+            RestTemplate restTemplate = new RestTemplate();
+            return restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    String.class
+            );
+        }
+    }
+    private class AskCityGeo implements State {
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            if (hasBeenRegistered) {
+                botFunctions.sendMessageAndMarkup(userId, messages.getASK_AGE(), botFunctions.customButton(String.valueOf(userEntity.getAge())));
+            } else {
+                botFunctions.sendMessageAndRemoveMarkup(userId, messages.getASK_AGE());
+            }
+            cacheService.setState(userId, StateEnum.ASK_AGE);
+
+            new Thread(() -> {
+                UserEntity cachedUser = cacheService.getCachedUser(userId);
+                Location location = message.getLocation();
+                double longitude = location.getLongitude();
+                double latitude = location.getLatitude();
+
+                cachedUser.setLongitude(longitude);
+                cachedUser.setLatitude(latitude);
+                cachedUser.setLocation(jsonParser.getName(response(latitude, longitude).getBody()));
+
+                cacheService.putCachedUser(userId, cachedUser);
+            }).start();
+        }
+        private ResponseEntity<String> response (double latitude, double longitude) {
+            String url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + latitude + "&longitude=" + longitude + "&localityLanguage=ru";
+            RestTemplate restTemplate = new RestTemplate();
+            return restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    String.class
+            );
         }
     }
 
@@ -296,7 +371,7 @@ public class StateMachine {
                 botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
                 cacheService.setState(userId, StateEnum.MENU);
                 UserEntity user = cacheService.getCachedUser(userId);
-                user.setIsActive(true);
+                user.setActive(true);
                 dataBaseService.saveUser(user);
                 cacheService.evictCachedUser(userId);
             }
@@ -328,7 +403,7 @@ public class StateMachine {
             String messageText = message.getText();
             if (messageText.equals("Выключить анкету")) {
                 botFunctions.sendMessageAndRemoveMarkup(userId, messages.getLEFT());
-                userEntity.setIsActive(false);
+                userEntity.setActive(false);
                 dataBaseService.saveUser(userEntity);
                 cacheService.evictState(userId);
             } else if (messageText.equals("Я передумала")) {
@@ -337,45 +412,89 @@ public class StateMachine {
             }
         }
     }
+
+
     private class EditProfile implements State {
+        final HashMap<String, State> answers;
+        public EditProfile () {
+            answers = new HashMap<>();
+            answers.put("БИО", new BIO());
+            answers.put("Хобби, о себе", new Hobby());
+            answers.put("Город", new City());
+            answers.put("Фото", new Photo());
+            answers.put("Изменить анкету полностью", new FullEdit());
+            answers.put("Вернуться в меню", new Menu());
+        }
+        public class BIO implements State {
+
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_NAME(), botFunctions.skipButton());
+                cacheService.setState(userId, StateEnum.EDIT_NAME);
+                cacheService.putCachedUser(userId, userEntity);
+            }
+        }
+
+        public class Hobby implements State {
+
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                if (userEntity.getHobby() == null) {
+                    botFunctions.sendMessageAndMarkup(userId, messages.getASK_HOBBY(), botFunctions.skipButton());
+                } else {
+                    botFunctions.sendMessageAndMarkup(userId, messages.getASK_HOBBY(), botFunctions.removeAndCustomButtons(messages.getUNEDITED_HOBBY()));
+                }
+                cacheService.setState(userId, StateEnum.EDIT_HOBBY);
+                cacheService.putCachedUser(userId, userEntity);
+            }
+        }
+
+        public class City implements State {
+
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_CITY(), botFunctions.customLocationButtons(userEntity.getLocation()));
+                cacheService.setState(userId, StateEnum.EDIT_CITY);
+            }
+        }
+
+        public class Photo implements State {
+
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_PHOTO(), botFunctions.customButton(messages.getUNEDITED_PHOTO()));
+                cacheService.setState(userId, StateEnum.EDIT_PHOTO);
+            }
+        }
+
+        public class FullEdit implements State {
+
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                cacheService.setState(userId, StateEnum.ASK_NAME);
+                cacheService.putCachedUser(userId, new UserEntity(userId));
+                botFunctions.sendMessageAndMarkup(userId, messages.getASK_NAME(), botFunctions.customButton(userEntity.getName()));
+            }
+        }
+
+        public class Menu implements State {
+
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
+                cacheService.setState(userId, StateEnum.MENU);
+            }
+        }
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             String messageText = message.getText();
-            switch (messageText) {
-                case "БИО" -> {
-                    botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_NAME(), botFunctions.skipButton());
-                    cacheService.setState(userId, StateEnum.EDIT_NAME);
-                    cacheService.putCachedUser(userId, userEntity);
-                }
-                case "Хобби, о себе" -> {
-                    if (userEntity.getHobby() == null) {
-                        botFunctions.sendMessageAndMarkup(userId, messages.getASK_HOBBY(), botFunctions.skipButton());
-                    } else {
-                        botFunctions.sendMessageAndMarkup(userId, messages.getASK_HOBBY(), botFunctions.removeAndCustomButtons(messages.getUNEDITED_HOBBY()));
-                    }
-                    cacheService.setState(userId, StateEnum.EDIT_HOBBY);
-                    cacheService.putCachedUser(userId, userEntity);
-                }
-                case "Город" -> {
-                    botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_CITY(), botFunctions.customButton(userEntity.getCity()));
-                    cacheService.setState(userId, StateEnum.EDIT_CITY);
-                }
-                case "Фото" -> {
-                    botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_PHOTO(), botFunctions.customButton(messages.getUNEDITED_PHOTO()));
-                    cacheService.setState(userId, StateEnum.EDIT_PHOTO);
-                }
-                case "Изменить анкету полностью" -> {
-                    cacheService.setState(userId, StateEnum.ASK_NAME);
-                    cacheService.putCachedUser(userId, new UserEntity(userId));
-                    botFunctions.sendMessageAndMarkup(userId, messages.getASK_NAME(), botFunctions.customButton(userEntity.getName()));
-                }
-                case "Вернуться в меню" -> {
-                    botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
-                    cacheService.setState(userId, StateEnum.MENU);
-                }
+            State state = answers.get(messageText);
+            if (state != null) {
+                state.handleInput(userId, userEntity, message, hasBeenRegistered);
             }
         }
     }
+
     private class EditName implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
@@ -393,6 +512,7 @@ public class StateMachine {
             cacheService.setState(userId, StateEnum.EDIT_AGE);
         }
     }
+
     private class EditAge implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
@@ -430,12 +550,15 @@ public class StateMachine {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             String messageText = message.getText();
-            if (!messageText.equals(userEntity.getCity())) {
+            if (!messageText.equals(userEntity.getLocation())) {
                 if (messageText.length() >= 100) {
                     botFunctions.sendMessageNotRemoveMarkup(userId, messages.getCITY_LIMIT_SYMBOLS_EXCEPTIONS());
                     return;
                 }
-                userEntity.setCity(messageText);
+                userEntity.setLocation(messageText);
+                Geocode geocode = jsonParser.getGeocode(response(messageText).getBody());
+                userEntity.setLongitude(geocode.getLon());
+                userEntity.setLatitude(geocode.getLat());
                 botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
                 botFunctions.sendDatingSiteProfile(userId, userEntity);
                 cacheService.putCachedUser(userId, userEntity);
@@ -447,7 +570,45 @@ public class StateMachine {
                 cacheService.setState(userId, StateEnum.EDIT_PROFILE);
             }
         }
+        private ResponseEntity<String> response (String geoObjectName) {
+            String url = "https://nominatim.openstreetmap.org/search?format=json&q=" + geoObjectName + "&addressdetails=1&limit=1&featureType=city";
+            RestTemplate restTemplate = new RestTemplate();
+            return restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    String.class
+            );
+        }
     }
+    private class EditCityGeo implements State {
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            Location location = message.getLocation();
+            double longitude = location.getLongitude();
+            double latitude = location.getLatitude();
+
+            userEntity.setLongitude(longitude);
+            userEntity.setLatitude(latitude);
+            userEntity.setLocation(jsonParser.getName(response(latitude, longitude).getBody()));
+
+            botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
+            botFunctions.sendDatingSiteProfile(userId, userEntity);
+            cacheService.putCachedUser(userId, userEntity);
+            cacheService.setState(userId, StateEnum.EDIT_RESULT);
+        }
+        private ResponseEntity<String> response (double latitude, double longitude) {
+            String url = "https://nominatim.openstreetmap.org/search?format=json&q=" + latitude + "," + longitude + "&addressdetails=1&limit=1&featureType=city";
+            RestTemplate restTemplate = new RestTemplate();
+            return restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    String.class
+            );
+        }
+    }
+
     private class EditHobby implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
@@ -545,7 +706,6 @@ public class StateMachine {
                 botFunctions.sendMessageAndMarkup(userId, messages.getEDIT_PROFILE(), botFunctions.editProfileButtons());
                 cacheService.setState(userId, StateEnum.EDIT_PROFILE);
                 cacheService.evictCachedUser(userId);
-
             }
         }
     }

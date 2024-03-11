@@ -2,6 +2,7 @@ package ru.nikidzawa.datingapp.TelegramBot;
 
 import lombok.SneakyThrows;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
+import org.telegram.telegrambots.meta.api.methods.send.SendLocation;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.File;
@@ -9,6 +10,7 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import ru.nikidzawa.datingapp.entities.UserEntity;
 
@@ -52,6 +54,15 @@ public class BotFunctions {
         telegramBot.execute(sendMessage);
     }
 
+    @SneakyThrows
+    public void sendLocation (long userId) {
+        SendLocation sendLocationRequest = new SendLocation();
+        sendLocationRequest.setChatId(String.valueOf(userId));
+        sendLocationRequest.setLatitude(0.0);
+        sendLocationRequest.setLongitude(0.0);
+        telegramBot.execute(sendLocationRequest);
+    }
+
     public ReplyKeyboardMarkup menuButtons() {return keyboardMarkupBuilder(List.of("1", "2", "3"));}
     public ReplyKeyboardMarkup resultButtons() {return keyboardMarkupBuilder(List.of("Заполнить анкету заново", "Продолжить"));}
     public ReplyKeyboardMarkup skipButton() {
@@ -81,6 +92,41 @@ public class BotFunctions {
     public ReplyKeyboardMarkup askBeforeOffButtons() {return keyboardMarkupBuilder(List.of("Выключить анкету", "Я передумала"));}
     public ReplyKeyboardMarkup editResultButtons() {return keyboardMarkupBuilder(List.of("Сохранить", "Отменить"));}
     public ReplyKeyboardMarkup customButton(String button) {return keyboardMarkupBuilder(List.of(button));}
+    public ReplyKeyboardMarkup customLocationButtons(String button) {
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+        replyKeyboardMarkup.setResizeKeyboard(true);
+        replyKeyboardMarkup.setOneTimeKeyboard(true);
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+
+        KeyboardRow firstRow = new KeyboardRow();
+        firstRow.add(button);
+        keyboardRows.add(firstRow);
+
+        KeyboardRow secondRow = new KeyboardRow();
+        KeyboardButton locationButton = new KeyboardButton();
+        locationButton.setRequestLocation(true);
+        locationButton.setText("\uD83D\uDCCDОтправить мою геолокацию");
+        secondRow.add(locationButton);
+        keyboardRows.add(secondRow);
+
+        replyKeyboardMarkup.setKeyboard(keyboardRows);
+        return replyKeyboardMarkup;
+    }
+    public ReplyKeyboardMarkup locationButton() {
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+        replyKeyboardMarkup.setResizeKeyboard(true);
+        replyKeyboardMarkup.setOneTimeKeyboard(true);
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+
+        KeyboardRow secondRow = new KeyboardRow();
+        KeyboardButton locationButton = new KeyboardButton();
+        locationButton.setRequestLocation(true);
+        locationButton.setText("\uD83D\uDCCDОтправить мою геолокацию");
+        secondRow.add(locationButton);
+        keyboardRows.add(secondRow);
+
+        replyKeyboardMarkup.setKeyboard(keyboardRows);
+        return replyKeyboardMarkup;}
     public ReplyKeyboardMarkup skipAndCustomButtons(String button) {return keyboardMarkupBuilder(List.of(button, "Пропустить"));}
     public ReplyKeyboardMarkup removeAndCustomButtons(String button) {return keyboardMarkupBuilder(List.of(button, "Убрать"));}
     public ReplyKeyboardMarkup welcomeBackButton() {return keyboardMarkupBuilder(List.of("Включить анкету"));}
@@ -114,14 +160,14 @@ public class BotFunctions {
         String filePath = file.getFilePath();
         URL fileUrl = new URL("https://api.telegram.org/file/bot" + telegramBot.getBotToken() + "/" + filePath);
         InputStream inputStream = fileUrl.openStream();
-        InputFile inputFile = new InputFile(inputStream, "фото.jpg");
+        InputFile inputFile = new InputFile(inputStream, "photo.jpg");
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setChatId(userId);
         sendPhoto.setPhoto(inputFile);
         String hobby = userEntity.getHobby();
         String aboutMe = userEntity.getAboutMe();
-        String profileInfo = userEntity.getName() + ", " + userEntity.getAge() + ", " + userEntity.getCity() +
-                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : "\n\n" + aboutMe);
+        String profileInfo = userEntity.getName() + ", " + userEntity.getAge() + ", " + userEntity.getLocation() +
+                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
         sendPhoto.setCaption(profileInfo);
         telegramBot.execute(sendPhoto);
     }

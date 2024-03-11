@@ -10,9 +10,10 @@ import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMem
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
+import ru.nikidzawa.datingapp.TelegramBot.cache.CacheService;
 import ru.nikidzawa.datingapp.TelegramBot.helpers.Messages;
 import ru.nikidzawa.datingapp.TelegramBot.helpers.UserAndState;
-import ru.nikidzawa.datingapp.TelegramBot.cache.CacheService;
+import ru.nikidzawa.datingapp.TelegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.TelegramBot.stateMachine.StateEnum;
 import ru.nikidzawa.datingapp.TelegramBot.stateMachine.StateMachine;
 import ru.nikidzawa.datingapp.entities.UserEntity;
@@ -57,9 +58,10 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         Optional<UserEntity> optionalUser = dataBaseService.getUserById(userId);
         if (message.getText() != null && message.getText().equals("/main")) {
-            optionalUser.ifPresentOrElse(user -> stateMachine.handleInput(StateEnum.MENU, userId, user, message, true), () -> {
-                botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться");
-            });
+            optionalUser.ifPresentOrElse(user -> {
+                botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
+                stateMachine.handleInput(StateEnum.MENU, userId, user, message, true);
+            }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
         } else {
             if (isSubscribe("@nikidzawa_group", userId, message)) {
                 UserAndState userAndState = userAndStateIdentification(userId,optionalUser, update.getMessage());
@@ -89,7 +91,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         Cache.ValueWrapper optionalCurrentState = cacheService.getCurrentState(userId);
         if (optionalCurrentState == null) {
             return optionalUser.map(user -> {
-                if (user.getIsActive()) {
+                if (user.isActive()) {
                     if (!message.getText().equals("1") && !message.getText().equals("2") && !message.getText().equals("3")) {
                         botFunctions.sendMessageAndRemoveMarkup(userId, "Время ожидания истекло, возвращаемся в главное меню");
                         botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
