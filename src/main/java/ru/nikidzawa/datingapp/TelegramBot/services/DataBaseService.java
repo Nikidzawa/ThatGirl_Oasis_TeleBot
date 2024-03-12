@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import ru.nikidzawa.datingapp.entities.UserEntity;
 import ru.nikidzawa.datingapp.entities.UserRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -26,5 +27,9 @@ public class DataBaseService {
     public UserEntity saveUser (UserEntity user) {
         userRepository.saveAndFlush(user);
         return user;
+    }
+
+    public List<UserEntity> getProfiles (UserEntity myProfile) {
+        return userRepository.findAllOrderByDistance(myProfile.getId(), myProfile.getLongitude(), myProfile.getLatitude());
     }
 }

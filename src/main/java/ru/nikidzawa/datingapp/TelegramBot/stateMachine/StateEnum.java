@@ -36,7 +36,13 @@ public enum StateEnum {
     ASK_BEFORE_OFF,
     WELCOME_BACK,
 
+    //Просмотр анкет
+    FIND_PEOPLES,
+    SHOW_WHO_LIKED_ME,
+    SHOW_PROFILES_WHO_LIKED_ME,
+    STOP_SHOW_PROFILES_WHO_LIKED_ME,
+
     //Действия из меню
     MENU,
-    PROFILE,
+    SUPER_MENU,
 }
