@@ -13,6 +13,7 @@ import ru.nikidzawa.datingapp.TelegramBot.services.API;
 import ru.nikidzawa.datingapp.TelegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.TelegramBot.services.parser.Geocode;
 import ru.nikidzawa.datingapp.TelegramBot.services.parser.JsonParser;
+import ru.nikidzawa.datingapp.entities.LikeEntity;
 import ru.nikidzawa.datingapp.entities.UserEntity;
 
 import java.util.*;
@@ -353,9 +354,9 @@ public class StateMachine {
                 cacheService.putCachedUser(userId, new UserEntity(userId));
                 botFunctions.sendMessageAndRemoveMarkup(userId, messages.getASK_NAME());
             } else if (message.getText().equals("Продолжить")) {
-                goToMenu(userId, userEntity);
+                UserEntity user = cacheService.getCachedUser(userId);
+                goToMenu(userId, user);
                 new Thread(() -> {
-                    UserEntity user = cacheService.getCachedUser(userId);
                     user.setActive(true);
                     dataBaseService.saveUser(user);
                     cacheService.evictCachedUser(userId);
@@ -400,11 +401,7 @@ public class StateMachine {
         private class ShowWhoLikedMe implements State {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-                UserEntity anotherUser = userEntity.getLikedMe().getFirst();
-                botFunctions.sendOtherProfileWhoLikedMe(userId, anotherUser, userEntity);
-                userEntity.getLikedMe().remove(anotherUser);
-                cacheService.setState(userId, StateEnum.SHOW_PROFILES_WHO_LIKED_ME);
-                dataBaseService.saveUser(userEntity);
+                likeChecker(userId, userEntity);
             }
         }
 
@@ -737,11 +734,7 @@ public class StateMachine {
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             String messageText = message.getText();
             if (messageText.equals("Посмотреть")) {
-                UserEntity anotherUser = userEntity.getLikedMe().getFirst();
-                botFunctions.sendOtherProfileWhoLikedMe(userId, anotherUser, userEntity);
-                userEntity.getLikedMe().remove(anotherUser);
-                cacheService.setState(userId, StateEnum.SHOW_PROFILES_WHO_LIKED_ME);
-                dataBaseService.saveUser(userEntity);
+                likeChecker(userId, userEntity);
             }
             else if (messageText.equals("В другой раз")) {
                 goToMenu(userId, userEntity);
@@ -749,27 +742,55 @@ public class StateMachine {
         }
     }
     private class ShowProfilesWhoLikedMe implements State {
-        @Override
-        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-            String messageText = message.getText();
-            if (messageText.equals("❤\uFE0F")) {
-                showNextProfile(userId, userEntity);
-            } else if (messageText.equals("\uD83D\uDC4E")) {
-                showNextProfile(userId, userEntity);
-            } else if (messageText.equals("\uD83D\uDCA4")) {
+        HashMap<String, State> response;
+        public ShowProfilesWhoLikedMe () {
+            response = new HashMap<>();
+            response.put("❤\uFE0F", new SendReciprocity());
+            response.put("\uD83D\uDC4E", new SendDislike());
+            response.put("\uD83D\uDCA4", new GoToMenu());
+        }
+
+        private class SendReciprocity implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                UserEntity likedUser = removeLike(userEntity);
+                String userName = botFunctions.getChatMember(likedUser.getId()).getUser().getUserName();
+                botFunctions.sendMessageNotRemoveMarkup(userId, "Желаю вам хорошо провести время :)\nhttps://t.me/" + userName);
+                likeChecker(userId, userEntity);
+                new Thread(() -> sendLike(userEntity, likedUser, true)).start();
+            }
+        }
+
+        private class SendDislike implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                removeLike(userEntity);
+                likeChecker(userId, userEntity);
+            }
+        }
+
+        private class GoToMenu implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
                 goToMenu(userId, userEntity);
             }
         }
-        public void showNextProfile (long userId, UserEntity userEntity) {
-            UserEntity anotherUser = userEntity.getLikedMe().getFirst();
-            if (anotherUser != null) {
-                botFunctions.sendOtherProfileWhoLikedMe(userId, anotherUser, userEntity);
-                userEntity.getLikedMe().remove(anotherUser);
-                cacheService.setState(userId, StateEnum.SHOW_PROFILES_WHO_LIKED_ME);
-                dataBaseService.saveUser(userEntity);
-            } else {
-                cacheService.setState(userId, StateEnum.STOP_SHOW_PROFILES_WHO_LIKED_ME);
-                botFunctions.sendMessageAndMarkup(userId, "На этом всё, продолжить просмотр анкет?", botFunctions.stopShowProfilesWhoLikedMeButtons());
+
+        private UserEntity removeLike (UserEntity userEntity) {
+            List<LikeEntity> likeEntityList = userEntity.getLikesGiven();
+            LikeEntity like = likeEntityList.getFirst();
+            UserEntity likedUser = dataBaseService.getUserById(like.getLikerUserId()).get();
+            likeEntityList.remove(like);
+            dataBaseService.saveUser(userEntity);
+            dataBaseService.deleteLike(like.getId());
+            return likedUser;
+        }
+
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            State state = response.get(message.getText());
+            if (state != null) {
+                state.handleInput(userId, userEntity, message, hasBeenRegistered);
             }
         }
     }
@@ -779,11 +800,9 @@ public class StateMachine {
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             String messageText = message.getText();
             if (messageText.equals("Продолжить смотреть анкеты")) {
-                UserEntity anotherUser = userEntity.getLikedMe().getFirst();
-                botFunctions.sendOtherProfileWhoLikedMe(userId, anotherUser, userEntity);
-                userEntity.getLikedMe().remove(anotherUser);
-                cacheService.setState(userId, StateEnum.SHOW_PROFILES_WHO_LIKED_ME);
-                dataBaseService.saveUser(userEntity);
+                UserEntity anotherUser = getRecommendation(userEntity, userId).getFirst();
+                botFunctions.sendOtherDatingProfile(userId, anotherUser, userEntity);
+                cacheService.setState(userId, StateEnum.FIND_PEOPLES);
             }
             else if (messageText.equals("Вернуться в меню")) {
                 goToMenu(userId, userEntity);
@@ -800,7 +819,7 @@ public class StateMachine {
             UserEntity anotherUser = profiles.getFirst();
             if (messageText.equals("❤\uFE0F")) {
                 botFunctions.sendMessageNotRemoveMarkup(userId, "Лайк отправлен, ждём ответа");
-                new Thread(() -> sendNotification(userEntity, anotherUser)).start();
+                new Thread(() -> sendLike(userEntity, anotherUser, false)).start();
                 cacheService.evictCachedProfiles(userId, anotherUser, profiles);
                 botFunctions.sendOtherDatingProfile(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
             } else if (messageText.equals("\uD83D\uDC4E")) {
@@ -811,45 +830,52 @@ public class StateMachine {
             }
         }
 
-        public void sendNotification (UserEntity myProfile, UserEntity anotherUser) {
-            UserEntity currentUser = dataBaseService.getUserById(anotherUser.getId()).get();
-            if (currentUser.isActive() && !currentUser.isBanned()) {
-                List<UserEntity> likedUsers = currentUser.getLikedMe();
-                boolean alreadyLiked = likedUsers.stream().anyMatch(u -> u.getId().equals(myProfile.getId()));
-                if (!alreadyLiked) {
-                    long anotherUserId = currentUser.getId();
-                    Cache.ValueWrapper optionalState = cacheService.getCurrentState(anotherUserId);
-                    if (optionalState == null || optionalState.get() == StateEnum.MENU) {
-                        if (likedUsers.isEmpty()) {
-                            botFunctions.sendMessageAndMarkup(anotherUser.getId(), "твоя анкета кому-то понравилась", botFunctions.showWhoLikedMeButtons());
-                        } else {
-                            botFunctions.sendMessageAndMarkup(anotherUser.getId(), "твоя анкета понравилась " + (likedUsers.size() + 1) + " людям", botFunctions.showWhoLikedMeButtons());
-                        }
-                    } else if (optionalState.get() == StateEnum.FIND_PEOPLES) {
-                        botFunctions.sendMessageNotRemoveMarkup(anotherUser.getId(), "Заканчивай с просмотром анкет, ты кому-то понравилась!");
-                    }
-                    likedUsers.clear();
-                    likedUsers.add(myProfile);
-                    currentUser.setLikedMe(likedUsers);
-                    dataBaseService.saveUser(currentUser);
-                }
+    }
+
+    public void likeChecker (long userId, UserEntity myProfile) {
+        List<LikeEntity> likeList = myProfile.getLikesGiven();
+        if (likeList.isEmpty()) {
+            botFunctions.sendMessageAndMarkup(userId, "На этом всё, продолжить просмотр анкет?", botFunctions.stopShowProfilesWhoLikedMeButtons());
+            cacheService.setState(userId, StateEnum.STOP_SHOW_PROFILES_WHO_LIKED_ME);
+        } else {
+            LikeEntity like = likeList.getFirst();
+            if (like.isReciprocity()) {
+                UserEntity likedUser = dataBaseService.getUserById(like.getLikerUserId()).get();
+                botFunctions.sendMessageNotRemoveMarkup(userId, "Есть взаимная симпатия!");
+                botFunctions.sendOtherProfile(userId, likedUser, myProfile);
+                String userName = botFunctions.getChatMember(likedUser.getId()).getUser().getUserName();
+                botFunctions.sendMessageNotRemoveMarkup(userId, "Желаю вам хорошо провести время :)\nhttps://t.me/" + userName);
+                likeList.remove(like);
+                dataBaseService.saveUser(myProfile);
+                dataBaseService.deleteLike(like.getId());
+                likeChecker(userId, myProfile);
+            } else {
+                UserEntity anotherUser = dataBaseService.getUserById(like.getLikerUserId()).get();
+                botFunctions.sendOtherProfileWhoLikedMe(userId, anotherUser, myProfile);
+                cacheService.setState(userId, StateEnum.SHOW_PROFILES_WHO_LIKED_ME);
             }
         }
     }
 
     public void goToMenu (long userId, UserEntity userEntity) {
-        int likedMeCount = userEntity.getLikedMe().size();
+        int likedMeCount = userEntity.getLikesGiven().size();
         if (likedMeCount == 0) {
             botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
             cacheService.setState(userId, StateEnum.MENU);
         } else {
+            String likeCountText;
+            if (likedMeCount == 1) {
+                likeCountText = "1. Посмотреть, кому я понравилась\n";
+            } else {
+                likeCountText = "1. Твоя анкета понравилась " + likedMeCount + " людям, показать их?\n";
+            }
             botFunctions.sendMessageAndMarkup(userId,
-                    "1. Посмотреть, кому я понравилась " + likedMeCount +
+                    likeCountText +
                             "2. Начать поиск подруг ✨\n" +
                             "3. Моя анкета\n" +
                             "4. Выключить анкету",
                     botFunctions.superMenuButtons());
-
+            cacheService.setState(userId, StateEnum.SUPER_MENU);
         }
     }
 
@@ -860,5 +886,33 @@ public class StateMachine {
             cacheService.putCachedProfiles(userId, profiles);
         }
         return profiles;
+    }
+
+    public void sendLike(UserEntity myProfile, UserEntity anotherUser, boolean isReciprocity) {
+        long anotherUserId = anotherUser.getId();
+        UserEntity realAnotherUser = dataBaseService.getUserById(anotherUserId).get();
+        List<LikeEntity> likedUsers = realAnotherUser.getLikesGiven();
+        if (dataBaseService.findByLikerUserId(myProfile.getId()).isEmpty()) {
+            Cache.ValueWrapper optionalState = cacheService.getCurrentState(anotherUserId);
+            if (optionalState == null || optionalState.get() == StateEnum.MENU) {
+                if (likedUsers.isEmpty()) {
+                    botFunctions.sendMessageAndMarkup(anotherUserId, "твоя анкета кому-то понравилась", botFunctions.showWhoLikedMeButtons());
+                } else {
+                    botFunctions.sendMessageAndMarkup(anotherUserId, "твоя анкета понравилась " + (likedUsers.size() + 1) + " людям", botFunctions.showWhoLikedMeButtons());
+                }
+                cacheService.setState(anotherUserId, StateEnum.SHOW_WHO_LIKED_ME);
+            } else if (optionalState.get() == StateEnum.FIND_PEOPLES) {
+                botFunctions.sendMessageNotRemoveMarkup(anotherUserId, "Заканчивай с просмотром анкет, ты кому-то понравилась!");
+            }
+            LikeEntity like = dataBaseService.saveLike(
+                    LikeEntity.builder()
+                            .isReciprocity(isReciprocity)
+                            .likedUser(realAnotherUser)
+                            .likerUserId(myProfile.getId())
+                            .build()
+            );
+            realAnotherUser.getLikesGiven().add(like);
+            dataBaseService.saveUser(realAnotherUser);
+        }
     }
 }

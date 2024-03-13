@@ -54,13 +54,8 @@ public class UserEntity implements Serializable {
     boolean isBanned = false;
 
     @JsonIgnore
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "LikedBy",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "liker_id")
-    )
-    private List<UserEntity> likedMe = new ArrayList<>();
+    @OneToMany(mappedBy = "likedUser", fetch = FetchType.EAGER)
+    private List<LikeEntity> likesGiven = new ArrayList<>();
 
     @Override
     public boolean equals(Object o) {

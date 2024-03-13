@@ -2,11 +2,13 @@ package ru.nikidzawa.datingapp.TelegramBot;
 
 import lombok.SneakyThrows;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.File;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
+import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
@@ -220,6 +222,31 @@ public class BotFunctions {
                 (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
         sendPhoto.setCaption(profileInfo);
         telegramBot.execute(sendPhoto);
+    }
+
+    @SneakyThrows
+    public void sendOtherProfile(Long userId, UserEntity anotherUser, UserEntity myProfile) {
+        String fileId = anotherUser.getPhoto();
+        GetFile getFile = new GetFile(fileId);
+        File file = telegramBot.execute(getFile);
+        String filePath = file.getFilePath();
+        URL fileUrl = new URL("https://api.telegram.org/file/bot" + telegramBot.getBotToken() + "/" + filePath);
+        InputStream inputStream = fileUrl.openStream();
+        InputFile inputFile = new InputFile(inputStream, "photo.jpg");
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setChatId(userId);
+        sendPhoto.setPhoto(inputFile);
+        String hobby = anotherUser.getHobby();
+        String aboutMe = anotherUser.getAboutMe();
+        String profileInfo = anotherUser.getName() + ", " + anotherUser.getAge() + ", " + anotherUser.getLocation() + ((myProfile.isShowGeo() && anotherUser.isShowGeo()) ? getDistance(anotherUser, myProfile) : "") +
+                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
+        sendPhoto.setCaption(profileInfo);
+        telegramBot.execute(sendPhoto);
+    }
+
+    @SneakyThrows
+    public ChatMember getChatMember (Long userId) {
+        return telegramBot.execute(new GetChatMember("@nikidzawa_group", userId));
     }
 
     public String getDistance(UserEntity anotherUser, UserEntity me) {

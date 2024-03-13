@@ -63,7 +63,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 stateMachine.handleInput(StateEnum.MENU, userId, user, message, true);
             }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
         } else {
-            if (isSubscribe("@nikidzawa_group", userId, message)) {
+            if (isSubscribe(userId, message)) {
                 UserAndState userAndState = userAndStateIdentification(userId,optionalUser, update.getMessage());
                 stateMachine.handleInput(userAndState.getStateEnum(), userId, userAndState.getUser(), message, userAndState.isHasBeenRegistered());
             }
@@ -71,8 +71,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     @SneakyThrows
-    public boolean isSubscribe (String chatName, long userId, Message message) {
-        ChatMember chatMember = execute(new GetChatMember(chatName, userId));
+    public boolean isSubscribe (long userId, Message message) {
+        ChatMember chatMember = botFunctions.getChatMember(userId);
         String status = chatMember.getStatus();
         if (message.isSuperGroupMessage()) {
             if (status.equals("left")) {stateMachine.handleInput(StateEnum.LEFT, userId, null, message, false);}

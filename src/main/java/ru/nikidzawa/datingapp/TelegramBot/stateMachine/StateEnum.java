@@ -35,6 +35,7 @@ public enum StateEnum {
     LEFT,
     ASK_BEFORE_OFF,
     WELCOME_BACK,
+    LIKE_ACCEPT,
 
     //Просмотр анкет
     FIND_PEOPLES,
