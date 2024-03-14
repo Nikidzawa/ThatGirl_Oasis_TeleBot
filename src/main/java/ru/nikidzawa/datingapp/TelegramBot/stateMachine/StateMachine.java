@@ -13,10 +13,13 @@ import ru.nikidzawa.datingapp.TelegramBot.services.API;
 import ru.nikidzawa.datingapp.TelegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.TelegramBot.services.parser.Geocode;
 import ru.nikidzawa.datingapp.TelegramBot.services.parser.JsonParser;
+import ru.nikidzawa.datingapp.entities.LikeContentType;
 import ru.nikidzawa.datingapp.entities.LikeEntity;
 import ru.nikidzawa.datingapp.entities.UserEntity;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
 
 @Component
 public class StateMachine {
@@ -39,6 +42,9 @@ public class StateMachine {
     private final HashMap<StateEnum, State> textStates;
     private final HashMap<StateEnum, State> photoStates;
     private final HashMap<StateEnum, State> locationStates;
+    private final HashMap<StateEnum, State> audioStates;
+    private final HashMap<StateEnum, State> videoStates;
+    private final HashMap<StateEnum, State> videoNoteStates;
 
     @Setter
     public BotFunctions botFunctions;
@@ -48,6 +54,9 @@ public class StateMachine {
         textStates = new HashMap<>();
         photoStates = new HashMap<>();
         locationStates = new HashMap<>();
+        audioStates = new HashMap<>();
+        videoStates = new HashMap<>();
+        videoNoteStates = new HashMap<>();
 
         textStates.put(StateEnum.START, new StartState());
         textStates.put(StateEnum.WELCOME_BACK, new WelcomeBack());
@@ -80,12 +89,18 @@ public class StateMachine {
         textStates.put(StateEnum.SHOW_WHO_LIKED_ME, new ShowWhoLikedMe());
         textStates.put(StateEnum.SHOW_PROFILES_WHO_LIKED_ME, new ShowProfilesWhoLikedMe());
         textStates.put(StateEnum.STOP_SHOW_PROFILES_WHO_LIKED_ME, new StopShowProfilesWhoLikedMe());
+        textStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageText());
 
         photoStates.put(StateEnum.ASK_PHOTO, new AskPhoto());
         photoStates.put(StateEnum.EDIT_PHOTO, new EditPhoto());
+        photoStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessagePhoto());
 
         locationStates.put(StateEnum.ASK_CITY, new AskCityGeo());
         locationStates.put(StateEnum.EDIT_CITY, new EditCityGeo());
+
+        audioStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageAudio());
+        videoStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageVideo());
+        videoNoteStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageVideoNote());
     }
 
     public void handleInput(StateEnum currentState, Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
@@ -93,9 +108,14 @@ public class StateMachine {
         if (message.hasText() || message.isSuperGroupMessage()) {state = textStates.get(currentState);}
         else if (message.hasPhoto()) {
             state = photoStates.get(currentState);
-        }
-        else if (message.hasLocation()) {
+        } else if (message.hasLocation()) {
             state = locationStates.get(currentState);
+        } else if (message.hasVoice()) {
+            state = audioStates.get(currentState);
+        } else if (message.hasVideo()) {
+            state = videoStates.get(currentState);
+        } else if (message.hasVideoNote()) {
+            state = videoNoteStates.get(currentState);
         }
 
         if (state != null) {
@@ -135,7 +155,6 @@ public class StateMachine {
         }
     }
 
-    // РЕГИСТРАЦИЯ
     private class PreRegister implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
@@ -371,7 +390,7 @@ public class StateMachine {
             switch (messageText) {
                 case "1" -> {
                     UserEntity anotherUser = getRecommendation(userEntity, userId).getFirst();
-                    botFunctions.sendOtherDatingProfile(userId, anotherUser, userEntity);
+                    botFunctions.sendOtherProfileAndButtons(userId, anotherUser, userEntity);
                     cacheService.setState(userId, StateEnum.FIND_PEOPLES);
                 }
                 case "2" -> {
@@ -409,7 +428,7 @@ public class StateMachine {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
                 UserEntity anotherUser = getRecommendation(userEntity, userId).getFirst();
-                botFunctions.sendOtherDatingProfile(userId, anotherUser, userEntity);
+                botFunctions.sendOtherProfileAndButtons(userId, anotherUser, userEntity);
                 cacheService.setState(userId, StateEnum.FIND_PEOPLES);
             }
         }
@@ -741,6 +760,81 @@ public class StateMachine {
             }
         }
     }
+
+    private class SendLikeAndMessagePhoto implements State {
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            botFunctions.sendMessageAndRemoveMarkup(userId, "Сообщение отправлено");
+            List<UserEntity> profiles = getRecommendation(userEntity, userId);
+            UserEntity anotherUser = profiles.getFirst();
+            String fileId = botFunctions.loadPhoto(message.getPhoto());
+            new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.PHOTO, fileId)).start();
+            cacheService.evictCachedProfiles(userId, anotherUser, profiles);
+            botFunctions.sendOtherProfileAndButtons(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
+            cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+        }
+    }
+
+    private class SendLikeAndMessageAudio implements State {
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            botFunctions.sendMessageAndRemoveMarkup(userId, "Сообщение отправлено");
+            List<UserEntity> profiles = getRecommendation(userEntity, userId);
+            UserEntity anotherUser = profiles.getFirst();
+            String fileId = message.getVoice().getFileId();
+            new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.VOICE, fileId)).start();
+            cacheService.evictCachedProfiles(userId, anotherUser, profiles);
+            botFunctions.sendOtherProfileAndButtons(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
+            cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+        }
+    }
+
+    private class SendLikeAndMessageVideo implements State {
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            botFunctions.sendMessageAndRemoveMarkup(userId, "Сообщение отправлено");
+            List<UserEntity> profiles = getRecommendation(userEntity, userId);
+            UserEntity anotherUser = profiles.getFirst();
+            String fileId = message.getVideo().getFileId();
+            new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.VIDEO, fileId)).start();
+            cacheService.evictCachedProfiles(userId, anotherUser, profiles);
+            botFunctions.sendOtherProfileAndButtons(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
+            cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+        }
+    }
+
+    private class SendLikeAndMessageText implements State {
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            String messageText = message.getText();
+            List<UserEntity> profiles = getRecommendation(userEntity, userId);
+            UserEntity anotherUser = profiles.getFirst();
+            if (!messageText.equals("Отменить")) {
+                botFunctions.sendMessageAndRemoveMarkup(userId, "Сообщение отправлено");
+                cacheService.evictCachedProfiles(userId, anotherUser, profiles);
+                botFunctions.sendOtherProfileAndButtons(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
+                new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.TEXT, messageText)).start();
+            } else {
+                botFunctions.sendOtherProfileAndButtons(userId, anotherUser, userEntity);
+            }
+            cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+        }
+    }
+
+    private class SendLikeAndMessageVideoNote implements State {
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            botFunctions.sendMessageAndRemoveMarkup(userId, "Сообщение отправлено");
+            List<UserEntity> profiles = getRecommendation(userEntity, userId);
+            UserEntity anotherUser = profiles.getFirst();
+            String fileId = message.getVideoNote().getFileId();
+            new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.VIDEO_NOTE, fileId)).start();
+            cacheService.evictCachedProfiles(userId, anotherUser, profiles);
+            botFunctions.sendOtherProfileAndButtons(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
+            cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+        }
+    }
+
     private class ShowProfilesWhoLikedMe implements State {
         HashMap<String, State> response;
         public ShowProfilesWhoLikedMe () {
@@ -757,7 +851,7 @@ public class StateMachine {
                 String userName = botFunctions.getChatMember(likedUser.getId()).getUser().getUserName();
                 botFunctions.sendMessageNotRemoveMarkup(userId, "Желаю вам хорошо провести время :)\nhttps://t.me/" + userName);
                 likeChecker(userId, userEntity);
-                new Thread(() -> sendLike(userEntity, likedUser, true)).start();
+                new Thread(() -> sendLike(userEntity, likedUser, true, null, null)).start();
             }
         }
 
@@ -801,7 +895,7 @@ public class StateMachine {
             String messageText = message.getText();
             if (messageText.equals("Продолжить смотреть анкеты")) {
                 UserEntity anotherUser = getRecommendation(userEntity, userId).getFirst();
-                botFunctions.sendOtherDatingProfile(userId, anotherUser, userEntity);
+                botFunctions.sendOtherProfileAndButtons(userId, anotherUser, userEntity);
                 cacheService.setState(userId, StateEnum.FIND_PEOPLES);
             }
             else if (messageText.equals("Вернуться в меню")) {
@@ -810,23 +904,62 @@ public class StateMachine {
         }
     }
 
-
     private class FindPeoples implements State {
+
+        HashMap<String, State> response;
+
+        public FindPeoples() {
+            response = new HashMap<>();
+            response.put("❤\uFE0F", new SendLike());
+            response.put("\uD83D\uDC8C", new SendLikeAndMessage());
+            response.put("\uD83D\uDC4E", new SendDislike());
+            response.put("\uD83D\uDCA4", new GoToMenu());
+        }
+
+        private class SendLike implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                List<UserEntity> profiles = getRecommendation(userEntity, userId);
+                UserEntity anotherUser = profiles.getFirst();
+
+                botFunctions.sendMessageNotRemoveMarkup(userId, "Лайк отправлен, ждём ответа");
+                new Thread(() -> sendLike(userEntity, anotherUser, false, null, null)).start();
+                cacheService.evictCachedProfiles(userId, anotherUser, profiles);
+                botFunctions.sendOtherProfileAndButtons(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
+            }
+        }
+        private class SendLikeAndMessage implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                botFunctions.sendMessageAndMarkup(userId, "Можешь отправить сообщение, кружок, голосовое, фото или видео. Я пришлю его этому человеку", botFunctions.skipSendLikeAndMessage());
+                cacheService.setState(userId, StateEnum.SEND_LIKE_AND_MESSAGE);
+            }
+        }
+
+        private class SendDislike implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                List<UserEntity> profiles = getRecommendation(userEntity, userId);
+                UserEntity anotherUser = profiles.getFirst();
+
+                cacheService.evictCachedProfiles(userId, anotherUser, profiles);
+                botFunctions.sendOtherProfileAndButtons(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
+            }
+        }
+
+        private class GoToMenu implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                goToMenu(userId, userEntity);
+            }
+        }
+
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             String messageText = message.getText();
-            List<UserEntity> profiles = getRecommendation(userEntity, userId);
-            UserEntity anotherUser = profiles.getFirst();
-            if (messageText.equals("❤\uFE0F")) {
-                botFunctions.sendMessageNotRemoveMarkup(userId, "Лайк отправлен, ждём ответа");
-                new Thread(() -> sendLike(userEntity, anotherUser, false)).start();
-                cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-                botFunctions.sendOtherDatingProfile(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
-            } else if (messageText.equals("\uD83D\uDC4E")) {
-                cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-                botFunctions.sendOtherDatingProfile(userId, getRecommendation(userEntity, userId).getFirst(), userEntity);
-            } else if (messageText.equals("\uD83D\uDCA4")) {
-                goToMenu(userId, userEntity);
+            State state = response.get(messageText);
+            if (state != null) {
+                state.handleInput(userId, userEntity, message, hasBeenRegistered);
             }
         }
 
@@ -842,7 +975,7 @@ public class StateMachine {
             if (like.isReciprocity()) {
                 UserEntity likedUser = dataBaseService.getUserById(like.getLikerUserId()).get();
                 botFunctions.sendMessageNotRemoveMarkup(userId, "Есть взаимная симпатия!");
-                botFunctions.sendOtherProfile(userId, likedUser, myProfile);
+                botFunctions.sendOtherProfileNotButtons(userId, likedUser, myProfile);
                 String userName = botFunctions.getChatMember(likedUser.getId()).getUser().getUserName();
                 botFunctions.sendMessageNotRemoveMarkup(userId, "Желаю вам хорошо провести время :)\nhttps://t.me/" + userName);
                 likeList.remove(like);
@@ -851,7 +984,7 @@ public class StateMachine {
                 likeChecker(userId, myProfile);
             } else {
                 UserEntity anotherUser = dataBaseService.getUserById(like.getLikerUserId()).get();
-                botFunctions.sendOtherProfileWhoLikedMe(userId, anotherUser, myProfile);
+                botFunctions.sendOtherProfileWhoLikedMe(userId, like, anotherUser, myProfile);
                 cacheService.setState(userId, StateEnum.SHOW_PROFILES_WHO_LIKED_ME);
             }
         }
@@ -888,7 +1021,7 @@ public class StateMachine {
         return profiles;
     }
 
-    public void sendLike(UserEntity myProfile, UserEntity anotherUser, boolean isReciprocity) {
+    public void sendLike(UserEntity myProfile, UserEntity anotherUser, boolean isReciprocity, LikeContentType likeContentType, String content) {
         long anotherUserId = anotherUser.getId();
         UserEntity realAnotherUser = dataBaseService.getUserById(anotherUserId).get();
         List<LikeEntity> likedUsers = realAnotherUser.getLikesGiven();
@@ -907,6 +1040,8 @@ public class StateMachine {
             LikeEntity like = dataBaseService.saveLike(
                     LikeEntity.builder()
                             .isReciprocity(isReciprocity)
+                            .likeContentType(likeContentType)
+                            .content(content)
                             .likedUser(realAnotherUser)
                             .likerUserId(myProfile.getId())
                             .build()

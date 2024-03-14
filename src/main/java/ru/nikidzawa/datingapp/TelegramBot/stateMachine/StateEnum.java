@@ -39,11 +39,12 @@ public enum StateEnum {
 
     //Просмотр анкет
     FIND_PEOPLES,
+    SEND_LIKE_AND_MESSAGE,
     SHOW_WHO_LIKED_ME,
     SHOW_PROFILES_WHO_LIKED_ME,
     STOP_SHOW_PROFILES_WHO_LIKED_ME,
 
-    //Действия из меню
+    //меню
     MENU,
     SUPER_MENU,
 }

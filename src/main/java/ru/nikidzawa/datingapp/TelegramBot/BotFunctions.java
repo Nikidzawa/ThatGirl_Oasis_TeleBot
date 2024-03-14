@@ -3,8 +3,7 @@ package ru.nikidzawa.datingapp.TelegramBot;
 import lombok.SneakyThrows;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.send.*;
 import org.telegram.telegrambots.meta.api.objects.File;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
@@ -13,23 +12,78 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMar
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import ru.nikidzawa.datingapp.TelegramBot.stateMachine.SendMessageType;
+import ru.nikidzawa.datingapp.entities.LikeContentType;
+import ru.nikidzawa.datingapp.entities.LikeEntity;
 import ru.nikidzawa.datingapp.entities.UserEntity;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 import static java.lang.Math.*;
 
 public class BotFunctions {
+    private final HashMap<LikeContentType, SendMessageType> sendMessage;
     private final TelegramBot telegramBot;
 
-    final int EARTH_RADIUS = 6371;
+    private class SendMessageTypePhoto implements SendMessageType {
+        @Override
+        @SneakyThrows
+        public void handleInput(Long userId, LikeEntity like) {
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(userId);
+            sendPhoto.setPhoto(getInputFile(like.getContent()));
+            telegramBot.execute(sendPhoto);
+        }
+    }
+
+    private class SendMessageTypeVideo implements SendMessageType {
+        @Override
+        @SneakyThrows
+        public void handleInput(Long userId, LikeEntity like) {
+            SendVideo sendVideo = new SendVideo();
+            sendVideo.setChatId(userId);
+            sendVideo.setVideo(getInputFile(like.getContent()));
+            telegramBot.execute(sendVideo);
+        }
+    }
+
+    private class SendMessageTypeVideoNote implements SendMessageType {
+        @Override
+        @SneakyThrows
+        public void handleInput(Long userId, LikeEntity like) {
+            SendVideoNote sendVideoNote = new SendVideoNote();
+            sendVideoNote.setChatId(userId);
+            sendVideoNote.setVideoNote(getInputFile(like.getContent()));
+            telegramBot.execute(sendVideoNote);
+        }
+    }
+
+    private class SendMessageTypeVoice implements SendMessageType {
+        @Override
+        @SneakyThrows
+        public void handleInput(Long userId, LikeEntity like) {
+            SendVoice sendVoice = new SendVoice();
+            sendVoice.setChatId(userId);
+            sendVoice.setVoice(getInputFile(like.getContent()));
+            telegramBot.execute(sendVoice);
+        }
+    }
+
 
     public BotFunctions (TelegramBot telegramBot) {
         this.telegramBot = telegramBot;
+        sendMessage = new HashMap<>();
+        sendMessage.put(LikeContentType.PHOTO, new SendMessageTypePhoto());
+        sendMessage.put(LikeContentType.VIDEO, new SendMessageTypeVideo());
+        sendMessage.put(LikeContentType.VIDEO_NOTE, new SendMessageTypeVideoNote());
+        sendMessage.put(LikeContentType.VOICE, new SendMessageTypeVoice());
     }
 
     @SneakyThrows
@@ -102,6 +156,21 @@ public class BotFunctions {
     public ReplyKeyboardMarkup askBeforeOffButtons() {return keyboardMarkupBuilder(List.of("Выключить анкету", "Я передумала"));}
     public ReplyKeyboardMarkup editResultButtons() {return keyboardMarkupBuilder(List.of("Сохранить", "Отменить"));}
     public ReplyKeyboardMarkup customButton(String button) {return keyboardMarkupBuilder(List.of(button));}
+    public ReplyKeyboardMarkup locationButton() {
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+        replyKeyboardMarkup.setResizeKeyboard(true);
+        replyKeyboardMarkup.setOneTimeKeyboard(true);
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+
+        KeyboardRow secondRow = new KeyboardRow();
+        KeyboardButton locationButton = new KeyboardButton();
+        locationButton.setRequestLocation(true);
+        locationButton.setText("\uD83D\uDCCDОтправить мою геолокацию");
+        secondRow.add(locationButton);
+        keyboardRows.add(secondRow);
+
+        replyKeyboardMarkup.setKeyboard(keyboardRows);
+        return replyKeyboardMarkup;}
     public ReplyKeyboardMarkup customLocationButtons(String button) {
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         replyKeyboardMarkup.setResizeKeyboard(true);
@@ -122,24 +191,11 @@ public class BotFunctions {
         replyKeyboardMarkup.setKeyboard(keyboardRows);
         return replyKeyboardMarkup;
     }
-    public ReplyKeyboardMarkup locationButton() {
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(true);
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
-
-        KeyboardRow secondRow = new KeyboardRow();
-        KeyboardButton locationButton = new KeyboardButton();
-        locationButton.setRequestLocation(true);
-        locationButton.setText("\uD83D\uDCCDОтправить мою геолокацию");
-        secondRow.add(locationButton);
-        keyboardRows.add(secondRow);
-
-        replyKeyboardMarkup.setKeyboard(keyboardRows);
-        return replyKeyboardMarkup;}
     public ReplyKeyboardMarkup skipAndCustomButtons(String button) {return keyboardMarkupBuilder(List.of(button, "Пропустить"));}
+    public ReplyKeyboardMarkup skipSendLikeAndMessage() {return keyboardMarkupBuilder(List.of("Отменить"));}
     public ReplyKeyboardMarkup removeAndCustomButtons(String button) {return keyboardMarkupBuilder(List.of(button, "Убрать"));}
     public ReplyKeyboardMarkup welcomeBackButton() {return keyboardMarkupBuilder(List.of("Включить анкету"));}
+    public ReplyKeyboardMarkup showWhoLikedMeButtons() {return keyboardMarkupBuilder(List.of("Посмотреть", "В другой раз"));}
 
     private ReplyKeyboardMarkup keyboardMarkupBuilder(List<String> buttonLabels) {
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
@@ -154,7 +210,6 @@ public class BotFunctions {
         replyKeyboardMarkup.setKeyboard(keyboardRows);
         return replyKeyboardMarkup;
     }
-    public ReplyKeyboardMarkup showWhoLikedMeButtons() {return keyboardMarkupBuilder(List.of("Посмотреть", "В другой раз"));}
 
     public String loadPhoto (List<PhotoSize> photos) {
         String fileId = photos.stream().max(Comparator.comparing(PhotoSize::getFileSize))
@@ -162,18 +217,20 @@ public class BotFunctions {
         return fileId;
     }
 
-    @SneakyThrows
-    public void sendMyDatingProfile(Long userId, UserEntity userEntity) {
-        String fileId = userEntity.getPhoto();
+    private InputFile getInputFile(String fileId) throws TelegramApiException, IOException {
         GetFile getFile = new GetFile(fileId);
         File file = telegramBot.execute(getFile);
         String filePath = file.getFilePath();
         URL fileUrl = new URL("https://api.telegram.org/file/bot" + telegramBot.getBotToken() + "/" + filePath);
         InputStream inputStream = fileUrl.openStream();
-        InputFile inputFile = new InputFile(inputStream, "photo.jpg");
+        return new InputFile(inputStream, "file");
+    }
+
+    @SneakyThrows
+    public void sendMyDatingProfile(Long userId, UserEntity userEntity) {
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setChatId(userId);
-        sendPhoto.setPhoto(inputFile);
+        sendPhoto.setPhoto(getInputFile(userEntity.getPhoto()));
         String hobby = userEntity.getHobby();
         String aboutMe = userEntity.getAboutMe();
         String profileInfo = userEntity.getName() + ", " + userEntity.getAge() + ", " + userEntity.getLocation() +
@@ -183,73 +240,55 @@ public class BotFunctions {
     }
 
     @SneakyThrows
-    public void sendOtherDatingProfile(Long userId, UserEntity anotherUser, UserEntity myProfile) {
-        String fileId = anotherUser.getPhoto();
-        GetFile getFile = new GetFile(fileId);
-        File file = telegramBot.execute(getFile);
-        String filePath = file.getFilePath();
-        URL fileUrl = new URL("https://api.telegram.org/file/bot" + telegramBot.getBotToken() + "/" + filePath);
-        InputStream inputStream = fileUrl.openStream();
-        InputFile inputFile = new InputFile(inputStream, "photo.jpg");
+    public void sendOtherProfileAndButtons(Long userId, UserEntity anotherUser, UserEntity myProfile) {
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setChatId(userId);
-        sendPhoto.setPhoto(inputFile);
+        sendPhoto.setPhoto(getInputFile(anotherUser.getPhoto()));
+        sendPhoto.setReplyMarkup(keyboardMarkupBuilder(List.of("❤\uFE0F", "\uD83D\uDC8C", "\uD83D\uDC4E", "\uD83D\uDCA4")));
+        String hobby = anotherUser.getHobby();
+        String aboutMe = anotherUser.getAboutMe();
+        String profileInfo = anotherUser.getName() + ", " + anotherUser.getAge() + ", " + anotherUser.getLocation() + ((myProfile.isShowGeo() && anotherUser.isShowGeo()) ? getDistance(anotherUser, myProfile) : "") +
+                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
+        sendPhoto.setCaption(profileInfo);
+        telegramBot.execute(sendPhoto);
+    }
+
+    @SneakyThrows
+    public void sendOtherProfileNotButtons(Long userId, UserEntity anotherUser, UserEntity myProfile) {
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setChatId(userId);
+        sendPhoto.setPhoto(getInputFile(anotherUser.getPhoto()));
+        String hobby = anotherUser.getHobby();
+        String aboutMe = anotherUser.getAboutMe();
+        String profileInfo = anotherUser.getName() + ", " + anotherUser.getAge() + ", " + anotherUser.getLocation() + ((myProfile.isShowGeo() && anotherUser.isShowGeo()) ? getDistance(anotherUser, myProfile) : "") +
+                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
+        sendPhoto.setCaption(profileInfo);
+        telegramBot.execute(sendPhoto);
+    }
+
+    @SneakyThrows
+    public void sendOtherProfileWhoLikedMe(Long userId, LikeEntity like, UserEntity anotherUser, UserEntity myProfile) {
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setChatId(userId);
+        sendPhoto.setPhoto(getInputFile(anotherUser.getPhoto()));
         sendPhoto.setReplyMarkup(keyboardMarkupBuilder(List.of("❤\uFE0F", "\uD83D\uDC4E", "\uD83D\uDCA4")));
         String hobby = anotherUser.getHobby();
         String aboutMe = anotherUser.getAboutMe();
+
         String profileInfo = anotherUser.getName() + ", " + anotherUser.getAge() + ", " + anotherUser.getLocation() + ((myProfile.isShowGeo() && anotherUser.isShowGeo()) ? getDistance(anotherUser, myProfile) : "") +
                 (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
+        if (like.getLikeContentType() != null && like.getLikeContentType().name().equals(LikeContentType.TEXT.name())) {
+            profileInfo += "\n\n\uD83D\uDC8CСообщение для тебя: " + like.getContent();
+        }
         sendPhoto.setCaption(profileInfo);
         telegramBot.execute(sendPhoto);
+        if (like.getLikeContentType() != null) {
+            sendMessageNotRemoveMarkup(userId, "\uD83D\uDC8CСообщение для тебя:");
+            sendMessage.get(like.getLikeContentType()).handleInput(userId, like);
+        }
     }
 
-    @SneakyThrows
-    public void sendOtherProfileWhoLikedMe(Long userId, UserEntity anotherUser, UserEntity myProfile) {
-        String fileId = anotherUser.getPhoto();
-        GetFile getFile = new GetFile(fileId);
-        File file = telegramBot.execute(getFile);
-        String filePath = file.getFilePath();
-        URL fileUrl = new URL("https://api.telegram.org/file/bot" + telegramBot.getBotToken() + "/" + filePath);
-        InputStream inputStream = fileUrl.openStream();
-        InputFile inputFile = new InputFile(inputStream, "photo.jpg");
-        SendPhoto sendPhoto = new SendPhoto();
-        sendPhoto.setChatId(userId);
-        sendPhoto.setPhoto(inputFile);
-        sendPhoto.setReplyMarkup(keyboardMarkupBuilder(List.of("❤\uFE0F", "\uD83D\uDC4E", "\uD83D\uDCA4")));
-        String hobby = anotherUser.getHobby();
-        String aboutMe = anotherUser.getAboutMe();
-        String profileInfo = anotherUser.getName() + ", " + anotherUser.getAge() + ", " + anotherUser.getLocation() + ((myProfile.isShowGeo() && anotherUser.isShowGeo()) ? getDistance(anotherUser, myProfile) : "") +
-                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
-        sendPhoto.setCaption(profileInfo);
-        telegramBot.execute(sendPhoto);
-    }
-
-    @SneakyThrows
-    public void sendOtherProfile(Long userId, UserEntity anotherUser, UserEntity myProfile) {
-        String fileId = anotherUser.getPhoto();
-        GetFile getFile = new GetFile(fileId);
-        File file = telegramBot.execute(getFile);
-        String filePath = file.getFilePath();
-        URL fileUrl = new URL("https://api.telegram.org/file/bot" + telegramBot.getBotToken() + "/" + filePath);
-        InputStream inputStream = fileUrl.openStream();
-        InputFile inputFile = new InputFile(inputStream, "photo.jpg");
-        SendPhoto sendPhoto = new SendPhoto();
-        sendPhoto.setChatId(userId);
-        sendPhoto.setPhoto(inputFile);
-        String hobby = anotherUser.getHobby();
-        String aboutMe = anotherUser.getAboutMe();
-        String profileInfo = anotherUser.getName() + ", " + anotherUser.getAge() + ", " + anotherUser.getLocation() + ((myProfile.isShowGeo() && anotherUser.isShowGeo()) ? getDistance(anotherUser, myProfile) : "") +
-                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) + (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
-        sendPhoto.setCaption(profileInfo);
-        telegramBot.execute(sendPhoto);
-    }
-
-    @SneakyThrows
-    public ChatMember getChatMember (Long userId) {
-        return telegramBot.execute(new GetChatMember("@nikidzawa_group", userId));
-    }
-
-    public String getDistance(UserEntity anotherUser, UserEntity me) {
+    private String getDistance(UserEntity anotherUser, UserEntity me) {
         double lat1 = anotherUser.getLatitude();
         double lon1 = anotherUser.getLongitude();
 
@@ -261,14 +300,20 @@ public class BotFunctions {
 
         double a = pow(sin(dLat / 2), 2) + pow(sin(dLon / 2), 2) * cos(toRadians(lat1)) * cos(toRadians(lat2));
         double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-        double distance = EARTH_RADIUS * c;
+        double distance = 6371 * c;
         if (distance < 250) {
             return formatDistance(distance);
         }
         return "";
     }
 
-    public static String formatDistance(double distance) {
+
+    @SneakyThrows
+    public ChatMember getChatMember (Long userId) {
+        return telegramBot.execute(new GetChatMember("@nikidzawa_group", userId));
+    }
+
+    private static String formatDistance(double distance) {
         int meters;
         if (distance < 1) {
             meters = Math.max(100, Math.min(900, (int) Math.round(distance * 100)));

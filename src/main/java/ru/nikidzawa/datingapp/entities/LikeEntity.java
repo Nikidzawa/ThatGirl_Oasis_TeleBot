@@ -25,9 +25,10 @@ public class LikeEntity implements Serializable {
 
     long likerUserId;
 
+    @Column(length = 2000)
     String content;
 
-    boolean hasText = false;
+    LikeContentType likeContentType;
 
     boolean isReciprocity = false;
 

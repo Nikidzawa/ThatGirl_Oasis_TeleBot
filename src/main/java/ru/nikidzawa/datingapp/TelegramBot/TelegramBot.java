@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
@@ -94,7 +93,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 if (user.isActive()) {
                     if (!message.getText().equals("1") && !message.getText().equals("2") && !message.getText().equals("3")) {
                         botFunctions.sendMessageAndRemoveMarkup(userId, "Время ожидания истекло, возвращаемся в главное меню");
-                        botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
+                        stateMachine.goToMenu(userId, user);
                     }
                     return new UserAndState(user, cacheService.setState(userId, StateEnum.MENU), true);
                 } else {
