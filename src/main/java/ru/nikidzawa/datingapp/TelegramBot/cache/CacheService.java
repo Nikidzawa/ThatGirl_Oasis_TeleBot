@@ -7,8 +7,8 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import ru.nikidzawa.datingapp.TelegramBot.stateMachine.StateEnum;
-import ru.nikidzawa.datingapp.entities.UserEntity;
+import ru.nikidzawa.datingapp.TelegramBot.stateMachines.states.StateEnum;
+import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +50,18 @@ public class CacheService {
 
     public void evictCachedUser(Long userId) {
         cacheManager.getCache("cached_user").evict(userId);
+    }
+
+    public Long getComplaintUserId(Long complainSenderId) {
+        return (Long) cacheManager.getCache("complain_user_id").get(complainSenderId).get();
+    }
+
+    public void putComplaintUser(Long complainSenderId, Long complaintUserId) {
+        cacheManager.getCache("complain_user_id").put(complainSenderId, complaintUserId);
+    }
+
+    public void evictComplaintUser(Long complainSenderId) {
+        cacheManager.getCache("complain_user_id").evict(complainSenderId);
     }
 
     @SneakyThrows

@@ -1,9 +1,11 @@
-package ru.nikidzawa.datingapp.entities;
+package ru.nikidzawa.datingapp.store.entities.user;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
+import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,6 +58,10 @@ public class UserEntity implements Serializable {
     @JsonIgnore
     @OneToMany(mappedBy = "likedUser", fetch = FetchType.EAGER)
     private List<LikeEntity> likesGiven = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "complaintUser", fetch = FetchType.LAZY)
+    private List<ComplainEntity> complaints = new ArrayList<>();
 
     @Override
     public boolean equals(Object o) {

@@ -1,10 +1,7 @@
-package ru.nikidzawa.datingapp.TelegramBot.stateMachine;
+package ru.nikidzawa.datingapp.TelegramBot.stateMachines.states;
 
 
 public enum StateEnum {
-    //
-    CHECK_GROUP_MEMBER,
-
     //Регистрация
     START,
     PRE_REGISTER,
@@ -47,4 +44,7 @@ public enum StateEnum {
     //меню
     MENU,
     SUPER_MENU,
+
+    //жалобы
+    CALL_BACK_QUERY_COMPLAIN
 }

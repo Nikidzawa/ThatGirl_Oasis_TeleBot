@@ -4,10 +4,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import ru.nikidzawa.datingapp.entities.LikeEntity;
-import ru.nikidzawa.datingapp.entities.LikeRepository;
-import ru.nikidzawa.datingapp.entities.UserEntity;
-import ru.nikidzawa.datingapp.entities.UserRepository;
+import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
+import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
+import ru.nikidzawa.datingapp.store.repositories.ComplaintRepository;
+import ru.nikidzawa.datingapp.store.repositories.LikeRepository;
+import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
+import ru.nikidzawa.datingapp.store.repositories.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +23,9 @@ public class DataBaseService {
     @Autowired
     LikeRepository likeRepository;
 
+    @Autowired
+    ComplaintRepository complaintRepository;
+
     @Cacheable(cacheNames = "user", key = "#id")
     public Optional<UserEntity> getUserById (Long id) {
         return userRepository.findFirstById(id);
@@ -33,6 +38,10 @@ public class DataBaseService {
 
     public LikeEntity saveLike (LikeEntity likeEntity) {
         return likeRepository.saveAndFlush(likeEntity);
+    }
+
+    public ComplainEntity saveComplain (ComplainEntity complainEntity) {
+        return complaintRepository.saveAndFlush(complainEntity);
     }
 
     public void deleteLike(Long likeId) {

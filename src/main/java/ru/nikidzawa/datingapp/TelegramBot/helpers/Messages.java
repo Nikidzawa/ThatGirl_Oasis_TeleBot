@@ -8,15 +8,29 @@ import org.springframework.stereotype.Component;
 @Component
 public class Messages {
 
-    //
-    @Value("${LEFT}")
-    String LEFT;
+    //REGISTRATION
+    @Value("${ASK_NAME}")
+    String ASK_NAME;
 
-    @Value("${ASK_BEFORE_OFF}")
-    String ASK_BEFORE_OFF;
+    @Value("${ASK_AGE}")
+    String ASK_AGE;
 
+    @Value("${ASK_CITY}")
+    String ASK_CITY;
 
-    //Изменение
+    @Value("${ASK_HOBBY}")
+    String ASK_HOBBY;
+
+    @Value("${ASK_ABOUT_ME}")
+    String ASK_ABOUT_ME;
+
+    @Value("${ASK_PHOTO}")
+    String ASK_PHOTO;
+
+    @Value("${RESULT}")
+    String RESULT;
+
+    //EDIT
     @Value("${EDIT_NAME}")
     String EDIT_NAME;
 
@@ -44,37 +58,26 @@ public class Messages {
     @Value("${UNEDITED_ABOUT_ME}")
     String UNEDITED_ABOUT_ME;
 
-    //Регистрация
-    @Value("${ASK_NAME}")
-    String ASK_NAME;
-
-    @Value("${ASK_AGE}")
-    String ASK_AGE;
-
-    @Value("${ASK_CITY}")
-    String ASK_CITY;
-
-    @Value("${ASK_HOBBY}")
-    String ASK_HOBBY;
-
-    @Value("${ASK_ABOUT_ME}")
-    String ASK_ABOUT_ME;
-
-    @Value("${ASK_PHOTO}")
-    String ASK_PHOTO;
-
-    @Value("${RESULT}")
-    String RESULT;
+    @Value("${ASK_BEFORE_OFF}")
+    String ASK_BEFORE_OFF;
 
 
-    //Меню
+    //MENU
     @Value("${MENU}")
     String MENU;
     @Value("${EDIT_PROFILE}")
     String EDIT_PROFILE;
 
 
-    //Ошибки
+    //LEFT GROUP OR DISABLE PROFILE
+    @Value("${LEFT}")
+    String LEFT;
+
+
+    //EXCEPTIONS
+    @Value("${NOT_GROUP_MEMBER_EXCEPTION}")
+    String NOT_GROUP_MEMBER_EXCEPTION;
+
     @Value("${INVALID_FORMAT_EXCEPTION}")
     String INVALID_FORMAT_EXCEPTION;
 

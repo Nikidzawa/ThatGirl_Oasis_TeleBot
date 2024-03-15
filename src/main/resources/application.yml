@@ -37,13 +37,9 @@ EDIT_CITY: Выбери новое местоположение
 EDIT_PHOTO: Давай загрузим новую фотографию для твоей анкеты
 EDIT_RESULT: Так будет выглядеть твоя анкета
 NULL_DATA_EDIT: Вы ничего не изменили, возвращаемся в профиль
-UNEDITED_PHOTO: Оставить текущее фото
+UNEDITED_PHOTO: Оставить текущее фотографии
 UNEDITED_HOBBY: Оставить текущие хобби
 UNEDITED_ABOUT_ME: Оставить текущую информацию
-
-#LEFT GROUP OR DISABLE PROFILE
-ASK_BEFORE_OFF: Ты уверена, что хочешь отключить свою анкету?
-LEFT: Нам очень жаль, что ты уходишь. Надеюсь, увидимся снова!
 
 #MENU
 MENU:
@@ -54,7 +50,12 @@ MENU:
   3. Выключить анкету
 EDIT_PROFILE: Выберите категорию, которую хотите изменить
 
+#LEFT GROUP OR DISABLE PROFILE
+ASK_BEFORE_OFF: Ты уверена, что хочешь отключить свою анкету?
+LEFT: Нам очень жаль, что ты уходишь. Надеюсь, увидимся снова!
+
 #EXCEPTIONS
+NOT_GROUP_MEMBER_EXCEPTION: Для продолжения, необходимо вступить в нашу группу t.me/nikidzawa_group
 INVALID_FORMAT_EXCEPTION: Формат ответа не поддерживается
 IS_NOT_A_NUMBER_EXCEPTION: Необходимо указать число
 

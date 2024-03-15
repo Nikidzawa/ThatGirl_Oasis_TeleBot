@@ -9,13 +9,15 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
+import ru.nikidzawa.datingapp.TelegramBot.botFunctions.BotFunctions;
 import ru.nikidzawa.datingapp.TelegramBot.cache.CacheService;
 import ru.nikidzawa.datingapp.TelegramBot.helpers.Messages;
 import ru.nikidzawa.datingapp.TelegramBot.helpers.UserAndState;
 import ru.nikidzawa.datingapp.TelegramBot.services.DataBaseService;
-import ru.nikidzawa.datingapp.TelegramBot.stateMachine.StateEnum;
-import ru.nikidzawa.datingapp.TelegramBot.stateMachine.StateMachine;
-import ru.nikidzawa.datingapp.entities.UserEntity;
+import ru.nikidzawa.datingapp.TelegramBot.stateMachines.commands.CommandStateMachine;
+import ru.nikidzawa.datingapp.TelegramBot.stateMachines.states.StateEnum;
+import ru.nikidzawa.datingapp.TelegramBot.stateMachines.states.StateMachine;
+import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 
 import java.util.Optional;
 
@@ -37,6 +39,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     StateMachine stateMachine;
 
     @Autowired
+    CommandStateMachine commandStateMachine;
+
+    @Autowired
     DataBaseService dataBaseService;
 
     @Autowired
@@ -47,39 +52,51 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void init () {
         botFunctions = new BotFunctions(this);
         stateMachine.setBotFunctions(botFunctions);
+        commandStateMachine.setBotFunctions(botFunctions);
     }
 
     @Override
     public void onUpdateReceived(Update update) {
+        if (update.hasCallbackQuery()) {
+            long chatId = update.getCallbackQuery().getMessage().getChatId();
+            Optional<UserEntity> optionalUser = dataBaseService.getUserById(chatId);
+            optionalUser.ifPresentOrElse(userEntity -> {
+                if (!userEntity.isBanned() && userEntity.isActive()) {
+                    botFunctions.sendMessageAndMarkup(chatId, "Вы собираетесь отправить жалобу. Пожалуйста, опишите в деталях вашу претензию и мы немедленно на неё отреагируем", botFunctions.cancelButton());
+                    cacheService.putComplaintUser(chatId, Long.valueOf(update.getCallbackQuery().getData()));
+                    cacheService.setState(chatId, StateEnum.CALL_BACK_QUERY_COMPLAIN);
+                } else {botFunctions.sendMessageNotRemoveMarkup(chatId, "Вы не имеете прав отправлять жалобы");}
+            }, () -> botFunctions.sendMessageNotRemoveMarkup(chatId, "Сначала необходимо зарегистрироваться"));
+            return;
+        }
         Message message = update.getMessage();
         long userId = update.getMessage().getFrom().getId();
-        new Thread(() -> checkNewUsers(message)).start();
-
         Optional<UserEntity> optionalUser = dataBaseService.getUserById(userId);
-        if (message.getText() != null && message.getText().equals("/main")) {
-            optionalUser.ifPresentOrElse(user -> {
-                botFunctions.sendMessageAndMarkup(userId, messages.getMENU(), botFunctions.menuButtons());
-                stateMachine.handleInput(StateEnum.MENU, userId, user, message, true);
-            }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
-        } else {
-            if (isSubscribe(userId, message)) {
-                UserAndState userAndState = userAndStateIdentification(userId,optionalUser, update.getMessage());
-                stateMachine.handleInput(userAndState.getStateEnum(), userId, userAndState.getUser(), message, userAndState.isHasBeenRegistered());
+        ChatMember chatMember = botFunctions.getChatMember(userId);
+        String role = chatMember.getStatus();
+        if (!message.isSuperGroupMessage()) {
+             if (message.hasText() && message.getText().startsWith("/")) {
+                commandStateMachine.handleInput(userId, message, role, optionalUser);
+            } else {
+                if (isSubscribe(userId, role)) {
+                    UserAndState userAndState = userAndStateIdentification(userId, optionalUser, message);
+                    stateMachine.handleInput(userAndState.getStateEnum(), userId, userAndState.getUser(), message, userAndState.isHasBeenRegistered());
+                }
             }
+        } else {
+            if (role.equals("left")) {stateMachine.handleInput(StateEnum.LEFT, userId, null, message, false);}
         }
+
+        new Thread(() -> checkNewUsers(message)).start();
     }
 
     @SneakyThrows
-    public boolean isSubscribe (long userId, Message message) {
-        ChatMember chatMember = botFunctions.getChatMember(userId);
-        String status = chatMember.getStatus();
-        if (message.isSuperGroupMessage()) {
-            if (status.equals("left")) {stateMachine.handleInput(StateEnum.LEFT, userId, null, message, false);}
-        } else {
-            if (status.equals("member") || status.equals("creator") || status.equals("admin")) {return true;}
-            else {stateMachine.handleInput(StateEnum.CHECK_GROUP_MEMBER, userId, null, message, false);}
+    public boolean isSubscribe (long userId, String role) {
+        if (role.equals("member") || role.equals("creator") || role.equals("admin")) {return true;}
+        else {
+            botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
+            return false;
         }
-        return false;
     }
 
     public void checkNewUsers (Message message) {

@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.entities;
+package ru.nikidzawa.datingapp.store.entities.like;
 
 public enum LikeContentType {
     TEXT,
