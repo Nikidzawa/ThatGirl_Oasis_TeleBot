@@ -6,8 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
@@ -85,6 +83,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                             complaintUser.setBanned(true);
                             dataBaseService.saveUser(complaintUser);
                             complaintRepository.deleteAll(complainEntities);
+                            commandStateMachine.getComplaint(chatId);
                         }
                         case "peace" -> {
                             botFunctions.sendMessageAndRemoveMarkup(chatId, "Пользователь помилован");
@@ -94,6 +93,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                             complaintUser.setBanned(false);
                             dataBaseService.saveUser(complaintUser);
                             complaintRepository.deleteAll(complainEntities);
+                            commandStateMachine.getComplaint(chatId);
                         }
                     }
                 } else {botFunctions.sendMessageNotRemoveMarkup(chatId, "Вы не имеете прав отправлять жалобы");}
@@ -118,7 +118,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             if (role.equals("left")) {stateMachine.handleInput(StateEnum.LEFT, userId, null, message, false);}
         }
 
-        new Thread(() -> checkNewUsers(message)).start();
+        new Thread(() -> checkNewUsers(message, userId)).start();
     }
 
     @SneakyThrows
@@ -130,8 +130,17 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private void checkNewUsers (Message message) {
-        message.getNewChatMembers().forEach(chatMember -> stateMachine.handleInput(StateEnum.START,  chatMember.getId(), null, message, false));
+    private void checkNewUsers (Message message, Long userId) {
+        message.getNewChatMembers().forEach(chatMember -> {
+            dataBaseService.getUserById(chatMember.getId()).ifPresentOrElse(userEntity -> {
+                botFunctions.sendMessageAndMarkup(userId,
+                        "Привет, " + message.getFrom().getFirstName() + "\n" +
+                                "Я рада, что ты вернулась в наше сообщество! \uD83D\uDC96\n" +
+                                "\n" +
+                                "Давай включим тебе анкету?\n", botFunctions.welcomeBackButton());
+                cacheService.setState(userId, StateEnum.WELCOME_BACK);
+            }, () -> stateMachine.handleInput(StateEnum.START,  chatMember.getId(), null, message, false));
+        });
     }
 
     private UserAndState userAndStateIdentification (Long userId, Optional<UserEntity> optionalUser, Message message) {

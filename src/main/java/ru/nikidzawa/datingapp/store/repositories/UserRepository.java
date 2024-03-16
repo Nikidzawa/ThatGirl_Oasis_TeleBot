@@ -6,10 +6,8 @@ import org.springframework.data.repository.query.Param;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
-    Optional<UserEntity> findFirstById (Long id);
 
     @Query("SELECT u FROM UserEntity u " +
             "WHERE u.isActive = true " +

@@ -73,33 +73,39 @@ public class CommandStateMachine {
     private class Menu implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            optionalUser.ifPresentOrElse(userEntity -> {
-                stateMachine.goToMenu(userId, userEntity);
-                if (!userEntity.isActive()) {
-                    userEntity.setActive(true);
-                    dataBaseService.saveUser(userEntity);
-                }
-            }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+            if (role.equals("member") || role.equals("creator") || role.equals("admin")) {
+                optionalUser.ifPresentOrElse(userEntity -> {
+                    stateMachine.goToMenu(userId, userEntity);
+                    if (!userEntity.isActive()) {
+                        userEntity.setActive(true);
+                        dataBaseService.saveUser(userEntity);
+                    }
+                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+            } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
     private class Error implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            optionalUser.ifPresentOrElse(userEntity -> {
-                cacheService.setState(userId, StateEnum.SEND_ERROR);
-                botFunctions.sendMessageNotRemoveMarkup(userId, "Пожалуйста, опишите в деталях проблему с которой вы столкнулись");
-            }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+            if (role.equals("member") || role.equals("creator") || role.equals("admin")) {
+                optionalUser.ifPresentOrElse(userEntity -> {
+                    cacheService.setState(userId, StateEnum.SEND_ERROR);
+                    botFunctions.sendMessageNotRemoveMarkup(userId, "Пожалуйста, опишите в деталях проблему с которой вы столкнулись");
+                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+            } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
     private class FAQ implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            optionalUser.ifPresentOrElse(userEntity -> {
-                botFunctions.sendMessageAndMarkup(userId, messages.getFAQ(), botFunctions.faqButtons());
-                cacheService.setState(userId, StateEnum.FAQ);
-            }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+            if (role.equals("member") || role.equals("creator") || role.equals("admin")) {
+                optionalUser.ifPresentOrElse(userEntity -> {
+                    botFunctions.sendMessageAndMarkup(userId, messages.getFAQ(), botFunctions.faqButtons());
+                    cacheService.setState(userId, StateEnum.FAQ);
+                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+            } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
@@ -158,22 +164,27 @@ public class CommandStateMachine {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
             if (role.equals("creator") || role.equals("admin")) {
-                List<ComplainEntity> complainEntities = complaintRepository.findAll();
-                Optional<ComplainEntity> optionalComplain = complainEntities.stream().findAny();
-                optionalComplain.ifPresentOrElse(complainEntity -> {
-                    UserEntity complainUser = complainEntity.getComplaintUser();
-                    botFunctions.sendMessageNotRemoveMarkup(
-                            userId,
-                            "Жалоба номер: " + complainEntity.getId()  +
-                            "\nОбщее число жалоб на пользователя: " + countComplainsByUserId(complainEntities, complainUser.getId())
-                    );
-                    botFunctions.sendDatingProfileAndJudgeButtons(userId, complainUser);
-                    botFunctions.sendMessageNotRemoveMarkup(userId, "Описание жалобы: " + complainEntity.getDescription());
-                }, () -> botFunctions.sendMessageNotRemoveMarkup(userId, "Больше жалоб не поступало"));
+                getComplaint(userId);
             }
         }
-        private long countComplainsByUserId (List<ComplainEntity> complainEntities, Long userId) {
-            return complainEntities.stream().filter(complainEntity -> Objects.equals(complainEntity.getComplaintUser().getId(), userId)).count();
-        }
+    }
+
+    public void getComplaint(long userId) {
+        List<ComplainEntity> complainEntities = complaintRepository.findAll();
+        Optional<ComplainEntity> optionalComplain = complainEntities.stream().findAny();
+        optionalComplain.ifPresentOrElse(complainEntity -> {
+            UserEntity complainUser = complainEntity.getComplaintUser();
+            botFunctions.sendMessageAndRemoveMarkup(
+                    userId,
+                    "Жалоба номер: " + complainEntity.getId()  +
+                    "\nОбщее число жалоб на пользователя: " + countComplainsByUserId(complainEntities, complainUser.getId())
+            );
+            botFunctions.sendDatingProfileAndJudgeButtons(userId, complainUser);
+            botFunctions.sendMessageNotRemoveMarkup(userId, "Описание жалобы: " + complainEntity.getDescription());
+        }, () -> botFunctions.sendMessageNotRemoveMarkup(userId, "Больше жалоб не поступало"));
+    }
+
+    private long countComplainsByUserId (List<ComplainEntity> complainEntities, Long userId) {
+        return complainEntities.stream().filter(complainEntity -> Objects.equals(complainEntity.getComplaintUser().getId(), userId)).count();
     }
 }

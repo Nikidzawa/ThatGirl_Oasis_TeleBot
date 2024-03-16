@@ -28,7 +28,7 @@ public class DataBaseService {
 
     @Cacheable(cacheNames = "user", key = "#id")
     public Optional<UserEntity> getUserById (Long id) {
-        return userRepository.findFirstById(id);
+        return userRepository.findById(id);
     }
 
     @CachePut(cacheNames = "user", key = "#user.id")
@@ -40,16 +40,12 @@ public class DataBaseService {
         return likeRepository.saveAndFlush(likeEntity);
     }
 
-    public ComplainEntity saveComplain (ComplainEntity complainEntity) {
-        return complaintRepository.saveAndFlush(complainEntity);
+    public void saveComplain (ComplainEntity complainEntity) {
+        complaintRepository.saveAndFlush(complainEntity);
     }
 
     public void deleteLike(Long likeId) {
         likeRepository.deleteById(likeId);
-    }
-
-    public List<LikeEntity> findByLikerUserId (long likerUserId) {
-        return likeRepository.findByLikerUserId(likerUserId);
     }
 
     public List<UserEntity> getProfiles (UserEntity myProfile) {

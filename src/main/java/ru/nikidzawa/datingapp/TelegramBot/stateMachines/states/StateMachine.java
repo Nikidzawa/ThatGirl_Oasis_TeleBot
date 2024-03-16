@@ -98,6 +98,7 @@ public class StateMachine {
         textStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageText());
         textStates.put(StateEnum.CALL_BACK_QUERY_COMPLAIN, new CallbackQueryComplain());
         textStates.put(StateEnum.FAQ, new FAQ());
+        textStates.put(StateEnum.FAQ_RESPONSE, new FaqResponse());
         textStates.put(StateEnum.SEND_ERROR, new SendError());
 
         photoStates.put(StateEnum.ASK_PHOTO, new AskPhoto());
@@ -153,6 +154,10 @@ public class StateMachine {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             botFunctions.sendMessageAndRemoveMarkup(userId, messages.getLEFT());
+            dataBaseService.getUserById(userId).ifPresent(user -> {
+                user.setActive(false);
+                dataBaseService.saveUser(user);
+            });
             cacheService.evictState(userId);
         }
     }
@@ -1007,6 +1012,19 @@ public class StateMachine {
         }
     }
 
+    private class FaqResponse implements State {
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            String messageText = message.getText();
+            if (messageText.equals("Назад")) {
+                botFunctions.sendMessageAndMarkup(userId, messages.getFAQ(), botFunctions.faqButtons());
+                cacheService.setState(userId, StateEnum.FAQ);
+            } else if (messageText.equals("Вернуться в меню")) {
+                goToMenu(userId, userEntity);
+            }
+        }
+    }
+
     private class FAQ implements State {
 
         private final HashMap<String, State> response;
@@ -1021,14 +1039,14 @@ public class StateMachine {
         private class FAQ1 implements State {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-                botFunctions.sendMessageNotRemoveMarkup(userId, messages.getFAQ_1());
+                botFunctions.sendMessageAndMarkup(userId, messages.getFAQ_1(), botFunctions.faqResponseButtons());
             }
         }
 
         private class FAQ2 implements State {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-                botFunctions.sendMessageNotRemoveMarkup(userId, messages.getFAQ_2());
+                botFunctions.sendMessageAndMarkup(userId, messages.getFAQ_2(), botFunctions.faqResponseButtons());
             }
         }
 
@@ -1136,7 +1154,7 @@ public class StateMachine {
         long anotherUserId = anotherUser.getId();
         UserEntity realAnotherUser = dataBaseService.getUserById(anotherUserId).get();
         List<LikeEntity> likedUsers = realAnotherUser.getLikesGiven();
-        if (dataBaseService.findByLikerUserId(myProfile.getId()).isEmpty()) {
+        if (likedUsers.stream().noneMatch(like -> like.getLikerUserId() == myProfile.getId())) {
             Cache.ValueWrapper optionalState = cacheService.getCurrentState(anotherUserId);
             if (optionalState == null || optionalState.get() == StateEnum.MENU) {
                 if (likedUsers.isEmpty()) {

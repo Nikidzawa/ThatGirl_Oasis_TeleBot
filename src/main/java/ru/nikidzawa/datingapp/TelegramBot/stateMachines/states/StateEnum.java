@@ -47,6 +47,7 @@ public enum StateEnum {
 
     //Команды
     FAQ,
+    FAQ_RESPONSE,
     SEND_ERROR,
     CALL_BACK_QUERY_COMPLAIN
 }
