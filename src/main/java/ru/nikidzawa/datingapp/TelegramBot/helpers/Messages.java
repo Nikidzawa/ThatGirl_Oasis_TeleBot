@@ -98,4 +98,12 @@ public class Messages {
 
     @Value("${CITY_LIMIT_SYMBOLS_EXCEPTIONS}")
     String CITY_LIMIT_SYMBOLS_EXCEPTIONS;
+
+    //Commands
+    @Value("${FAQ}")
+    String FAQ;
+    @Value("${FAQ_1}")
+    String FAQ_1;
+    @Value("${FAQ_2}")
+    String FAQ_2;
 }

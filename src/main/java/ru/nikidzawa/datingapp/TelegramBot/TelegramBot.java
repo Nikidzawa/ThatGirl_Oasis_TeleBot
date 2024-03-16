@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
@@ -17,8 +19,11 @@ import ru.nikidzawa.datingapp.TelegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.TelegramBot.stateMachines.commands.CommandStateMachine;
 import ru.nikidzawa.datingapp.TelegramBot.stateMachines.states.StateEnum;
 import ru.nikidzawa.datingapp.TelegramBot.stateMachines.states.StateMachine;
+import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
+import ru.nikidzawa.datingapp.store.repositories.ComplaintRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -45,6 +50,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     DataBaseService dataBaseService;
 
     @Autowired
+    ComplaintRepository complaintRepository;
+
+    @Autowired
     CacheService cacheService;
 
     @PostConstruct
@@ -62,9 +70,32 @@ public class TelegramBot extends TelegramLongPollingBot {
             Optional<UserEntity> optionalUser = dataBaseService.getUserById(chatId);
             optionalUser.ifPresentOrElse(userEntity -> {
                 if (!userEntity.isBanned() && userEntity.isActive()) {
-                    botFunctions.sendMessageAndMarkup(chatId, "Вы собираетесь отправить жалобу. Пожалуйста, опишите в деталях вашу претензию и мы немедленно на неё отреагируем", botFunctions.cancelButton());
-                    cacheService.putComplaintUser(chatId, Long.valueOf(update.getCallbackQuery().getData()));
-                    cacheService.setState(chatId, StateEnum.CALL_BACK_QUERY_COMPLAIN);
+                    String[] response = update.getCallbackQuery().getData().split(",");
+                    switch (response[0]) {
+                        case "complaint" -> {
+                            botFunctions.sendMessageAndMarkup(chatId, "Вы собираетесь отправить жалобу. Пожалуйста, опишите в деталях вашу претензию и мы немедленно на неё отреагируем", botFunctions.cancelButton());
+                            cacheService.putComplaintUser(chatId, Long.valueOf(response[1]));
+                            cacheService.setState(chatId, StateEnum.CALL_BACK_QUERY_COMPLAIN);
+                        }
+                        case "block" -> {
+                            botFunctions.sendMessageAndRemoveMarkup(chatId, "Пользователь заблокирован");
+                            UserEntity complaintUser = dataBaseService.getUserById(Long.valueOf(response[1])).get();
+                            List<ComplainEntity> complainEntities = complaintRepository.findByComplaintUser(complaintUser);
+                            complaintUser.setComplaints(null);
+                            complaintUser.setBanned(true);
+                            dataBaseService.saveUser(complaintUser);
+                            complaintRepository.deleteAll(complainEntities);
+                        }
+                        case "peace" -> {
+                            botFunctions.sendMessageAndRemoveMarkup(chatId, "Пользователь помилован");
+                            UserEntity complaintUser = dataBaseService.getUserById(Long.valueOf(response[1])).get();
+                            List<ComplainEntity> complainEntities = complaintRepository.findByComplaintUser(complaintUser);
+                            complaintUser.setComplaints(null);
+                            complaintUser.setBanned(false);
+                            dataBaseService.saveUser(complaintUser);
+                            complaintRepository.deleteAll(complainEntities);
+                        }
+                    }
                 } else {botFunctions.sendMessageNotRemoveMarkup(chatId, "Вы не имеете прав отправлять жалобы");}
             }, () -> botFunctions.sendMessageNotRemoveMarkup(chatId, "Сначала необходимо зарегистрироваться"));
             return;
@@ -91,7 +122,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     @SneakyThrows
-    public boolean isSubscribe (long userId, String role) {
+    private boolean isSubscribe (long userId, String role) {
         if (role.equals("member") || role.equals("creator") || role.equals("admin")) {return true;}
         else {
             botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
@@ -99,11 +130,11 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    public void checkNewUsers (Message message) {
+    private void checkNewUsers (Message message) {
         message.getNewChatMembers().forEach(chatMember -> stateMachine.handleInput(StateEnum.START,  chatMember.getId(), null, message, false));
     }
 
-    public UserAndState userAndStateIdentification (Long userId, Optional<UserEntity> optionalUser, Message message) {
+    private UserAndState userAndStateIdentification (Long userId, Optional<UserEntity> optionalUser, Message message) {
         Cache.ValueWrapper optionalCurrentState = cacheService.getCurrentState(userId);
         if (optionalCurrentState == null) {
             return optionalUser.map(user -> {

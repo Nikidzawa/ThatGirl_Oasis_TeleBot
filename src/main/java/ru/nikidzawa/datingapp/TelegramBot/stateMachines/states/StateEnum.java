@@ -45,6 +45,8 @@ public enum StateEnum {
     MENU,
     SUPER_MENU,
 
-    //жалобы
+    //Команды
+    FAQ,
+    SEND_ERROR,
     CALL_BACK_QUERY_COMPLAIN
 }

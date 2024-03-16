@@ -6,9 +6,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
+import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.store.repositories.ComplaintRepository;
 import ru.nikidzawa.datingapp.store.repositories.LikeRepository;
-import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.store.repositories.UserRepository;
 
 import java.util.List;
