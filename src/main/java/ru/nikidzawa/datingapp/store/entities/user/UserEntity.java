@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
+import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
 
 import java.io.Serializable;
@@ -31,7 +32,6 @@ public class UserEntity implements Serializable {
     @Column(length = 100)
     String name;
 
-    @Column(length = 100)
     int age;
 
     @Column(length = 100)
@@ -57,11 +57,20 @@ public class UserEntity implements Serializable {
 
     @JsonIgnore
     @OneToMany(mappedBy = "likedUser", fetch = FetchType.EAGER)
-    private List<LikeEntity> likesGiven = new ArrayList<>();
+    List<LikeEntity> likesGiven = new ArrayList<>();
 
     @JsonIgnore
     @OneToMany(mappedBy = "complaintUser", fetch = FetchType.LAZY)
-    private List<ComplainEntity> complaints = new ArrayList<>();
+    List<ComplainEntity> complaints = new ArrayList<>();
+
+    @JsonIgnore
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_event",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "event_id")
+    )
+    List<EventEntity> events = new ArrayList<>();
 
     @Override
     public boolean equals(Object o) {

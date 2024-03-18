@@ -54,8 +54,9 @@ public class CommandStateMachine {
 
     public CommandStateMachine() {
         commands = new HashMap<>();
+        commands.put("/start", new Start());
         commands.put("/menu", new Menu());
-        commands.put("/FAQ", new FAQ());
+        commands.put("/faq", new FAQ());
         commands.put("/error", new Error());
         commands.put("/show_errors", new ShowErrors());
         commands.put("/analysis", new Analysis());
@@ -70,10 +71,30 @@ public class CommandStateMachine {
         }
     }
 
+    private class Start implements CommandState {
+        @Override
+        public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
+            if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {
+                optionalUser.ifPresentOrElse(userEntity -> {
+                    if (userEntity.isActive()) {
+                        stateMachine.goToMenu(userId, userEntity);
+                    } else {
+                        botFunctions.sendMessageAndMarkup(userId,
+                                "Привет, " + message.getFrom().getFirstName() + "\n" +
+                                        "Я рада, что ты вернулась в наше сообщество! \uD83D\uDC96\n" +
+                                        "\n" +
+                                        "Давай включим тебе анкету?\n", botFunctions.welcomeBackButton());
+                        cacheService.setState(userId, StateEnum.WELCOME_BACK);
+                    }
+                }, () -> stateMachine.handleInput(StateEnum.START, userId, null, message, false));
+            } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
+        }
+    }
+
     private class Menu implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("member") || role.equals("creator") || role.equals("admin")) {
+            if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     stateMachine.goToMenu(userId, userEntity);
                     if (!userEntity.isActive()) {
@@ -88,7 +109,7 @@ public class CommandStateMachine {
     private class Error implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("member") || role.equals("creator") || role.equals("admin")) {
+            if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     cacheService.setState(userId, StateEnum.SEND_ERROR);
                     botFunctions.sendMessageNotRemoveMarkup(userId, "Пожалуйста, опишите в деталях проблему с которой вы столкнулись");
@@ -100,7 +121,7 @@ public class CommandStateMachine {
     private class FAQ implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("member") || role.equals("creator") || role.equals("admin")) {
+            if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     botFunctions.sendMessageAndMarkup(userId, messages.getFAQ(), botFunctions.faqButtons());
                     cacheService.setState(userId, StateEnum.FAQ);
@@ -112,7 +133,7 @@ public class CommandStateMachine {
     private class Analysis implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("creator") || role.equals("admin")) {
+            if (role.equals("creator") || role.equals("administrator")) {
                 botFunctions.sendMessageAndRemoveMarkup(userId, "Идёт анализ, пожалуйста, подождите...");
                 String[] results = userRepository.findTop10CitiesByUserCount();
                 Long size = userRepository.countActiveAndNotBannedUsers();
@@ -145,7 +166,7 @@ public class CommandStateMachine {
     private class ShowErrors implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("creator") || role.equals("admin")) {
+            if (role.equals("creator") || role.equals("administrator")) {
                 List<ErrorEntity> errorEntities = errorRepository.findAll();
                 Optional<ErrorEntity> optionalError = errorEntities.stream().findAny();
                 optionalError.ifPresentOrElse(errorEntity -> {
@@ -163,7 +184,7 @@ public class CommandStateMachine {
     private class Complains implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("creator") || role.equals("admin")) {
+            if (role.equals("creator") || role.equals("administrator")) {
                 getComplaint(userId);
             }
         }

@@ -1040,6 +1040,7 @@ public class StateMachine {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
                 botFunctions.sendMessageAndMarkup(userId, messages.getFAQ_1(), botFunctions.faqResponseButtons());
+                cacheService.setState(userId, StateEnum.FAQ_RESPONSE);
             }
         }
 
@@ -1047,6 +1048,7 @@ public class StateMachine {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
                 botFunctions.sendMessageAndMarkup(userId, messages.getFAQ_2(), botFunctions.faqResponseButtons());
+                cacheService.setState(userId, StateEnum.FAQ_RESPONSE);
             }
         }
 

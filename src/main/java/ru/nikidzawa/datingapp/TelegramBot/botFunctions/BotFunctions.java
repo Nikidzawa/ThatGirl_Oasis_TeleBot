@@ -291,7 +291,7 @@ public class BotFunctions {
         String location = userEntity.getLocation();
         String profileInfo = userName + ", " + age + ", " + location +
                 (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) +
-                (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
+                (aboutMe == null ? "" : "\n" + aboutMe);
 
         SendPhoto sendPhoto = sendPhotoFuture.get();
         sendPhoto.setCaption(profileInfo);
@@ -347,7 +347,7 @@ public class BotFunctions {
         String location = userEntity.getLocation();
         String profileInfo = userName + ", " + age + ", " + location +
                 (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) +
-                (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
+                (aboutMe == null ? "" : "\n" + aboutMe);
 
         SendPhoto sendPhoto = sendPhotoFuture.get();
         sendPhoto.setCaption(profileInfo);
@@ -383,7 +383,7 @@ public class BotFunctions {
         String distance = distanceFuture.get();
         String profileInfo = userName + ", " + age + ", " + location + distance +
                 (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) +
-                (aboutMe == null ? "" : (hobby == null ? "\n" : "\n\n") + aboutMe);
+                (aboutMe == null ? "" : "\n" + aboutMe);
 
         SendPhoto sendPhoto = sendPhotoFuture.get();
         sendPhoto.setCaption(profileInfo);

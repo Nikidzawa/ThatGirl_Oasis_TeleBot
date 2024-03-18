@@ -34,7 +34,10 @@ public class JsonParser {
             geocode.setLat(Double.parseDouble(lonLat[0]));
             return geocode;
         } catch (Exception e) {
-            return null;
+            Geocode geocode = new Geocode();
+            geocode.setLat(55.7535926);
+            geocode.setLon(37.62148935239179);
+            return geocode;
         }
     }
 }

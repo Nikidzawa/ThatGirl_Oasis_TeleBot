@@ -123,7 +123,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @SneakyThrows
     private boolean isSubscribe (long userId, String role) {
-        if (role.equals("member") || role.equals("creator") || role.equals("admin")) {return true;}
+        if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {return true;}
         else {
             botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
             return false;

@@ -21,6 +21,29 @@ spring:
     redis:
       time-to-live: 10800000
 ---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  data:
+    redis:
+      host: redis
+  cache:
+    redis:
+      time-to-live: 10800000
+---
 #REGISTRATION
 ASK_NAME: Как тебя зовут?
 ASK_AGE: Сколько тебе лет?
