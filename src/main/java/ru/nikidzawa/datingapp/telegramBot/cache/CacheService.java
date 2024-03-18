@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.TelegramBot.cache;
+package ru.nikidzawa.datingapp.telegramBot.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
@@ -7,8 +7,8 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import ru.nikidzawa.datingapp.TelegramBot.stateMachines.states.StateEnum;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.states.StateEnum;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,9 +31,8 @@ public class CacheService {
         return cacheManager.getCache("states").get(userId);
     }
 
-    public StateEnum setState (Long userId, StateEnum stateEnum) {
+    public void setState (Long userId, StateEnum stateEnum) {
         cacheManager.getCache("states").put(userId, stateEnum);
-        return stateEnum;
     }
 
     public void evictState (Long userId) {

@@ -1,21 +1,19 @@
-package ru.nikidzawa.datingapp.TelegramBot.stateMachines.commands;
+package ru.nikidzawa.datingapp.telegramBot.stateMachines.commands;
 
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import ru.nikidzawa.datingapp.TelegramBot.botFunctions.BotFunctions;
-import ru.nikidzawa.datingapp.TelegramBot.cache.CacheService;
-import ru.nikidzawa.datingapp.TelegramBot.helpers.Messages;
-import ru.nikidzawa.datingapp.TelegramBot.services.DataBaseService;
-import ru.nikidzawa.datingapp.TelegramBot.stateMachines.states.StateEnum;
-import ru.nikidzawa.datingapp.TelegramBot.stateMachines.states.StateMachine;
 import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
 import ru.nikidzawa.datingapp.store.entities.error.ErrorEntity;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
-import ru.nikidzawa.datingapp.store.repositories.ComplaintRepository;
-import ru.nikidzawa.datingapp.store.repositories.ErrorRepository;
-import ru.nikidzawa.datingapp.store.repositories.UserRepository;
+import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
+import ru.nikidzawa.datingapp.telegramBot.cache.CacheService;
+import ru.nikidzawa.datingapp.telegramBot.helpers.Messages;
+import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.roles.RolesController;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.states.StateEnum;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.states.StateMachine;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,29 +23,22 @@ import java.util.Optional;
 @Component
 public class CommandStateMachine {
 
-    HashMap<String, CommandState> commands;
+    private final HashMap<String, CommandState> commands;
 
     @Autowired
-    StateMachine stateMachine;
+    private StateMachine stateMachine;
 
     @Autowired
-    Messages messages;
+    private Messages messages;
 
     @Autowired
-    UserRepository userRepository;
+    private DataBaseService dataBaseService;
 
     @Autowired
-    DataBaseService dataBaseService;
+    private RolesController rolesController;
 
     @Autowired
-    ComplaintRepository complaintRepository;
-
-    @Autowired
-    ErrorRepository errorRepository;
-
-
-    @Autowired
-    CacheService cacheService;
+    private CacheService cacheService;
 
     @Setter
     public BotFunctions botFunctions;
@@ -74,17 +65,12 @@ public class CommandStateMachine {
     private class Start implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {
+            if (rolesController.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     if (userEntity.isActive()) {
                         stateMachine.goToMenu(userId, userEntity);
                     } else {
-                        botFunctions.sendMessageAndMarkup(userId,
-                                "Привет, " + message.getFrom().getFirstName() + "\n" +
-                                        "Я рада, что ты вернулась в наше сообщество! \uD83D\uDC96\n" +
-                                        "\n" +
-                                        "Давай включим тебе анкету?\n", botFunctions.welcomeBackButton());
-                        cacheService.setState(userId, StateEnum.WELCOME_BACK);
+                        stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
                     }
                 }, () -> stateMachine.handleInput(StateEnum.START, userId, null, message, false));
             } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
@@ -94,14 +80,14 @@ public class CommandStateMachine {
     private class Menu implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {
+            if (rolesController.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     stateMachine.goToMenu(userId, userEntity);
                     if (!userEntity.isActive()) {
                         userEntity.setActive(true);
                         dataBaseService.saveUser(userEntity);
                     }
-                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_REGISTER()));
             } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
@@ -109,11 +95,11 @@ public class CommandStateMachine {
     private class Error implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {
+            if (rolesController.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     cacheService.setState(userId, StateEnum.SEND_ERROR);
-                    botFunctions.sendMessageNotRemoveMarkup(userId, "Пожалуйста, опишите в деталях проблему с которой вы столкнулись");
-                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+                    botFunctions.sendMessageNotRemoveMarkup(userId, messages.getSEND_ERROR());
+                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_REGISTER()));
             } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
@@ -121,11 +107,11 @@ public class CommandStateMachine {
     private class FAQ implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("member") || role.equals("creator") || role.equals("administrator")) {
+            if (rolesController.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     botFunctions.sendMessageAndMarkup(userId, messages.getFAQ(), botFunctions.faqButtons());
                     cacheService.setState(userId, StateEnum.FAQ);
-                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, "Сначала необходимо зарегистрироваться"));
+                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_REGISTER()));
             } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
@@ -133,10 +119,10 @@ public class CommandStateMachine {
     private class Analysis implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("creator") || role.equals("administrator")) {
+            if (rolesController.superRoles.contains(role)) {
                 botFunctions.sendMessageAndRemoveMarkup(userId, "Идёт анализ, пожалуйста, подождите...");
-                String[] results = userRepository.findTop10CitiesByUserCount();
-                Long size = userRepository.countActiveAndNotBannedUsers();
+                String[] results = dataBaseService.findTop10CitiesByUserCount();
+                Long size = dataBaseService.getCountActiveAndNotBannedUsers();
                 StringBuilder stringBuilder = new StringBuilder();
 
                 stringBuilder.append("Рейтинг топ 10 популярных городов:").append("\n");
@@ -166,8 +152,8 @@ public class CommandStateMachine {
     private class ShowErrors implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("creator") || role.equals("administrator")) {
-                List<ErrorEntity> errorEntities = errorRepository.findAll();
+            if (rolesController.superRoles.contains(role)) {
+                List<ErrorEntity> errorEntities = dataBaseService.findAllErrors();
                 Optional<ErrorEntity> optionalError = errorEntities.stream().findAny();
                 optionalError.ifPresentOrElse(errorEntity -> {
                     botFunctions.sendMessageNotRemoveMarkup(
@@ -175,7 +161,7 @@ public class CommandStateMachine {
                             "Ошибка номер: " + errorEntity.getId() + "\nОписание ошибки: " + errorEntity.getDescription()
 
                     );
-                    errorRepository.delete(errorEntity);
+                    dataBaseService.deleteError(errorEntity);
                 }, () -> botFunctions.sendMessageNotRemoveMarkup(userId, "Больше жалоб не поступало"));
             }
         }
@@ -184,14 +170,14 @@ public class CommandStateMachine {
     private class Complains implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (role.equals("creator") || role.equals("administrator")) {
+            if (rolesController.superRoles.contains(role)) {
                 getComplaint(userId);
             }
         }
     }
 
     public void getComplaint(long userId) {
-        List<ComplainEntity> complainEntities = complaintRepository.findAll();
+        List<ComplainEntity> complainEntities = dataBaseService.findAllComplaints();
         Optional<ComplainEntity> optionalComplain = complainEntities.stream().findAny();
         optionalComplain.ifPresentOrElse(complainEntity -> {
             UserEntity complainUser = complainEntity.getComplaintUser();

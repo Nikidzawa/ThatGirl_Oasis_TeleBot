@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.TelegramBot.services;
+package ru.nikidzawa.datingapp.telegramBot.services.api;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 @Component
-public class API {
+public class GeocodingApi {
     String[] apiKeysPull = {"a9e37ef6-bfed-43a3-81eb-1f8cbd52bbc1", "6fcdd42f-151b-4068-b587-ffaec9a48512", "69b2e791-2b45-4268-841f-2a98c25e62cc"};
     int currentKey = 0;
 

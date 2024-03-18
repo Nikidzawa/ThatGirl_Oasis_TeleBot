@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.TelegramBot.services;
+package ru.nikidzawa.datingapp;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
@@ -11,7 +11,7 @@ import ru.nikidzawa.datingapp.store.repositories.UserRepository;
 import java.util.Optional;
 
 @RestController
-public class DataApi {
+public class DataBaseApi {
     @Autowired
     UserRepository userRepository;
 

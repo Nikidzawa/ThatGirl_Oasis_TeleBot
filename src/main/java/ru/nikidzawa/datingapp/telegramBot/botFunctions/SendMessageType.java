@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.TelegramBot.botFunctions;
+package ru.nikidzawa.datingapp.telegramBot.botFunctions;
 
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
 

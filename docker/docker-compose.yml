@@ -2,7 +2,7 @@ version: '3.1'
 
 services:
   telebot:
-    image: '2c2336daf63c'
+    image: 'c1c33b312fb1'
     container_name: telebot
     expose:
       - '8080'

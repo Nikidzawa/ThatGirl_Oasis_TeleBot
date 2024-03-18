@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.TelegramBot.config;
+package ru.nikidzawa.datingapp.telegramBot.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.ContextRefreshedEvent;
@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
-import ru.nikidzawa.datingapp.TelegramBot.TelegramBot;
+import ru.nikidzawa.datingapp.telegramBot.TelegramBot;
 
 @Component
 public class BotInitializer {

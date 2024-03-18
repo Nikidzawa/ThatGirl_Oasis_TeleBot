@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.TelegramBot.botFunctions;
+package ru.nikidzawa.datingapp.telegramBot.botFunctions;
 
 import lombok.SneakyThrows;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
@@ -15,10 +15,10 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import ru.nikidzawa.datingapp.TelegramBot.TelegramBot;
 import ru.nikidzawa.datingapp.store.entities.like.LikeContentType;
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
+import ru.nikidzawa.datingapp.telegramBot.TelegramBot;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -238,6 +238,7 @@ public class BotFunctions {
         replyKeyboardMarkup.setKeyboard(keyboardRows);
         return replyKeyboardMarkup;}
     public ReplyKeyboardMarkup faqResponseButtons() {return keyboardMarkupBuilder(List.of("Назад", "Вернуться в меню"));}
+    public ReplyKeyboardMarkup restartButton() {return keyboardMarkupBuilder(List.of("/start"));}
     public ReplyKeyboardMarkup searchButtons() {return keyboardMarkupBuilder(List.of("❤", "\uD83D\uDC8C", "\uD83D\uDC4E", "\uD83D\uDCA4"));}
     public ReplyKeyboardMarkup reciprocityButtons() {return keyboardMarkupBuilder(List.of("❤", "\uD83D\uDC4E", "\uD83D\uDCA4"));}
 
@@ -263,7 +264,7 @@ public class BotFunctions {
         block.setText("\uD83D\uDEABЗаблокировать");
         block.setCallbackData("block," + userId);
         InlineKeyboardButton peace = new InlineKeyboardButton();
-        peace.setText("\uD83D\uDD4A\uFE0FПомиловать");
+        peace.setText("\uD83D\uDD4AПомиловать");
         peace.setCallbackData("peace," + userId);
         row.add(block);
         row.add(peace);
@@ -275,7 +276,7 @@ public class BotFunctions {
 
     @SneakyThrows
     public void sendDatingProfileAndJudgeButtons(Long userId, UserEntity userEntity) {
-        ExecutorService executor = Executors.newFixedThreadPool(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
 
         Future<SendPhoto> sendPhotoFuture = executor.submit(() -> {
             SendPhoto sendPhoto = new SendPhoto();
@@ -284,14 +285,20 @@ public class BotFunctions {
             return sendPhoto;
         });
 
-        String hobby = userEntity.getHobby();
+        Future<String> parseHobbyFuture = executor.submit(() -> {
+            String hobby = userEntity.getHobby();
+            if (hobby != null) {
+                return parseHobby(hobby);
+            }
+            return "";
+        });
+
         String aboutMe = userEntity.getAboutMe();
         String userName = userEntity.getName();
         String age = String.valueOf(userEntity.getAge());
         String location = userEntity.getLocation();
-        String profileInfo = userName + ", " + age + ", " + location +
-                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) +
-                (aboutMe == null ? "" : "\n" + aboutMe);
+        String hobby = parseHobbyFuture.get();
+        String profileInfo = userName + ", " + age + ", " + location + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
 
         SendPhoto sendPhoto = sendPhotoFuture.get();
         sendPhoto.setCaption(profileInfo);
@@ -316,8 +323,10 @@ public class BotFunctions {
     }
 
     public String loadPhoto (List<PhotoSize> photos) {
-        return photos.stream().max(Comparator.comparing(PhotoSize::getFileSize))
-                .orElse(null).getFileId();
+        return photos.stream()
+                .max(Comparator.comparing(PhotoSize::getFileSize))
+                .orElse(null)
+                .getFileId();
     }
 
     private InputFile getInputFile(String fileId) throws TelegramApiException, IOException {
@@ -331,7 +340,7 @@ public class BotFunctions {
 
     @SneakyThrows
     public void sendDatingProfile(Long userId, UserEntity userEntity) {
-        ExecutorService executor = Executors.newFixedThreadPool(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
 
         Future<SendPhoto> sendPhotoFuture = executor.submit(() -> {
             SendPhoto sendPhoto = new SendPhoto();
@@ -340,14 +349,20 @@ public class BotFunctions {
             return sendPhoto;
         });
 
-        String hobby = userEntity.getHobby();
+        Future<String> parseHobbyFuture = executor.submit(() -> {
+            String hobby = userEntity.getHobby();
+            if (hobby != null) {
+                return parseHobby(hobby);
+            }
+            return "";
+        });
+
         String aboutMe = userEntity.getAboutMe();
         String userName = userEntity.getName();
         String age = String.valueOf(userEntity.getAge());
         String location = userEntity.getLocation();
-        String profileInfo = userName + ", " + age + ", " + location +
-                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) +
-                (aboutMe == null ? "" : "\n" + aboutMe);
+        String hobby = parseHobbyFuture.get();
+        String profileInfo = userName + ", " + age + ", " + location + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
 
         SendPhoto sendPhoto = sendPhotoFuture.get();
         sendPhoto.setCaption(profileInfo);
@@ -358,7 +373,7 @@ public class BotFunctions {
 
     @SneakyThrows
     public void sendOtherProfile(Long userId, UserEntity anotherUser, UserEntity myProfile, ReplyKeyboardMarkup replyKeyboardMarkup) {
-        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ExecutorService executor = Executors.newFixedThreadPool(3);
 
         Future<String> distanceFuture = executor.submit(() -> {
             if (myProfile.isShowGeo() && anotherUser.isShowGeo()) {
@@ -375,15 +390,21 @@ public class BotFunctions {
             return sendPhoto;
         });
 
-        String hobby = anotherUser.getHobby();
+        Future<String> parseHobbyFuture = executor.submit(() -> {
+            String hobby = anotherUser.getHobby();
+            if (hobby != null) {
+                return parseHobby(hobby);
+            }
+            return "";
+        });
+
         String aboutMe = anotherUser.getAboutMe();
         String userName = anotherUser.getName();
         String age = String.valueOf(anotherUser.getAge());
         String location = anotherUser.getLocation();
         String distance = distanceFuture.get();
-        String profileInfo = userName + ", " + age + ", " + location + distance +
-                (hobby == null ? "" : "\nМои хобби:" + parseHobby(hobby)) +
-                (aboutMe == null ? "" : "\n" + aboutMe);
+        String hobby = parseHobbyFuture.get();
+        String profileInfo = userName + ", " + age + ", " + location + distance + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
 
         SendPhoto sendPhoto = sendPhotoFuture.get();
         sendPhoto.setCaption(profileInfo);
@@ -432,6 +453,7 @@ public class BotFunctions {
     private String parseHobby(String allHobby) {
         StringBuilder stringBuilder = new StringBuilder();
         String[] hobbyArray = allHobby.split(",");
+        stringBuilder.append("\nМои хобби:");
         for (String hobby : hobbyArray) {
             String trimmedHobby = hobby.trim();
             if (!trimmedHobby.isEmpty()) {

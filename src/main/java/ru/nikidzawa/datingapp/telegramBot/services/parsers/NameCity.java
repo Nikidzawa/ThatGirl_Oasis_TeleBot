@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.TelegramBot.services.parser;
+package ru.nikidzawa.datingapp.telegramBot.services.parsers;
 
 import lombok.Getter;
 import lombok.Setter;

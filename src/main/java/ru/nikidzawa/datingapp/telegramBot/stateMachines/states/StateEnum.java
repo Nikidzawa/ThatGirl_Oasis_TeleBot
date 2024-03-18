@@ -1,10 +1,10 @@
-package ru.nikidzawa.datingapp.TelegramBot.stateMachines.states;
+package ru.nikidzawa.datingapp.telegramBot.stateMachines.states;
 
 
 public enum StateEnum {
     //Регистрация
     START,
-    PRE_REGISTER,
+    START_HANDLE,
     ASK_NAME,
     ASK_AGE,
     ASK_CITY,
@@ -32,6 +32,7 @@ public enum StateEnum {
     LEFT,
     ASK_BEFORE_OFF,
     WELCOME_BACK,
+    WELCOME_BACK_HANDLE,
     LIKE_ACCEPT,
 
     //Просмотр анкет
