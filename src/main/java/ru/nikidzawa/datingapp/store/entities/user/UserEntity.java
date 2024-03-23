@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
-import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
 
 import java.io.Serializable;
@@ -56,21 +55,16 @@ public class UserEntity implements Serializable {
     boolean isBanned = false;
 
     @JsonIgnore
+    @OneToOne(fetch = FetchType.LAZY)
+    UserSiteAccountEntity siteAccount;
+
+    @JsonIgnore
     @OneToMany(mappedBy = "likedUser", fetch = FetchType.EAGER)
     List<LikeEntity> likesGiven = new ArrayList<>();
 
     @JsonIgnore
     @OneToMany(mappedBy = "complaintUser", fetch = FetchType.LAZY)
     List<ComplainEntity> complaints = new ArrayList<>();
-
-    @JsonIgnore
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "user_event",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "event_id")
-    )
-    List<EventEntity> events = new ArrayList<>();
 
     @Override
     public boolean equals(Object o) {

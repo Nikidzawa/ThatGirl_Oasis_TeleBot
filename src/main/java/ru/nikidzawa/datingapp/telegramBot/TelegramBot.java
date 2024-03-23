@@ -2,7 +2,6 @@ package ru.nikidzawa.datingapp.telegramBot;
 
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
-import net.bytebuddy.implementation.bind.annotation.IgnoreForBinding;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.stereotype.Component;
@@ -10,6 +9,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
+import ru.nikidzawa.datingapp.DataBaseApi;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 import ru.nikidzawa.datingapp.telegramBot.cache.CacheService;
@@ -57,10 +57,13 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Autowired
     RolesController rolesController;
 
+    @Autowired
+    DataBaseApi dataBaseApi;
+
     private final HashSet<String> menuButtons;
 
     public TelegramBot () {
-        menuButtons = new HashSet<>(List.of("1", "2", "3", "Вернуться в меню"));
+        menuButtons = new HashSet<>(List.of("1", "2", "3", "4"));
     }
 
     @PostConstruct
@@ -70,7 +73,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         stateMachine.setBotFunctions(botFunctions);
         commandStateMachine.setBotFunctions(botFunctions);
         callBacksStateMachine.setBotFunctions(botFunctions);
-
+        dataBaseApi.setBotFunctions(botFunctions);
     }
 
     @Override
@@ -130,7 +133,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (optionalCurrentState == null) {
              optionalUser.ifPresentOrElse(user -> {
                 if (user.isActive()) {
-                    if (menuButtons.contains(message.getText())) {
+                    if (message.hasText() && menuButtons.contains(message.getText())) {
                         if (user.getLikesGiven().isEmpty()) {
                          stateMachine.handleInput(StateEnum.MENU, userId, user, message, true);
                         } else {

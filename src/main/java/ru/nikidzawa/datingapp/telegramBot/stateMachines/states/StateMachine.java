@@ -11,6 +11,7 @@ import ru.nikidzawa.datingapp.store.entities.error.ErrorEntity;
 import ru.nikidzawa.datingapp.store.entities.like.LikeContentType;
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
+import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccountEntity;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 import ru.nikidzawa.datingapp.telegramBot.cache.CacheService;
 import ru.nikidzawa.datingapp.telegramBot.helpers.Messages;
@@ -392,6 +393,16 @@ public class StateMachine {
                 goToMenu(userId, user);
                 new Thread(() -> {
                     user.setActive(true);
+                    dataBaseService.saveUser(user);
+                    UserSiteAccountEntity userSiteAccount = dataBaseService.saveUserSiteAccount(
+                            UserSiteAccountEntity.builder()
+                                    .id(userId)
+                                    .latitude(user.getLatitude())
+                                    .longitude(user.getLongitude())
+                                    .userEntity(user)
+                                    .build()
+                    );
+                    user.setSiteAccount(userSiteAccount);
                     dataBaseService.saveUser(user);
                     cacheService.evictCachedUser(userId);
                 }).start();

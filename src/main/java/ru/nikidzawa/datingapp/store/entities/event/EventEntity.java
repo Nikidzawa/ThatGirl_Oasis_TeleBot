@@ -5,9 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
+import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccountEntity;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,26 +22,34 @@ public class EventEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
+    String city;
+
+    String address;
+
     String name;
 
-    @Column(length = 200)
-    String address;
+    String date;
+
+    String time;
+
+    String rating;
 
     Long cost;
 
-    LocalDate dateStart;
+    Double lon;
 
-    LocalTime timeStart;
+    Double lat;
 
-    @Column(length = 100)
+    @Column(length = 500)
     String smallDescription;
 
-    @Column(length = 2000)
+    @Column(length = 5000)
     String fullDescription;
 
-    String photo;
+    @Column(length = 10000)
+    String image;
 
     @JsonIgnore
     @ManyToMany(mappedBy = "events", fetch = FetchType.LAZY)
-    List<UserEntity> users = new ArrayList<>();
+    List<UserSiteAccountEntity> users = new ArrayList<>();
 }

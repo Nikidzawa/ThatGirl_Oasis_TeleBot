@@ -8,10 +8,8 @@ import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
 import ru.nikidzawa.datingapp.store.entities.error.ErrorEntity;
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
-import ru.nikidzawa.datingapp.store.repositories.ComplaintRepository;
-import ru.nikidzawa.datingapp.store.repositories.ErrorRepository;
-import ru.nikidzawa.datingapp.store.repositories.LikeRepository;
-import ru.nikidzawa.datingapp.store.repositories.UserRepository;
+import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccountEntity;
+import ru.nikidzawa.datingapp.store.repositories.*;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +29,9 @@ public class DataBaseService {
     @Autowired
     private ErrorRepository errorRepository;
 
+    @Autowired
+    private UserSiteAccountRepository userSiteAccountRepository;
+
     @Cacheable(cacheNames = "user", key = "#id")
     public Optional<UserEntity> getUserById (Long id) {
         return userRepository.findById(id);
@@ -39,6 +40,11 @@ public class DataBaseService {
     @CachePut(cacheNames = "user", key = "#user.id")
     public UserEntity saveUser (UserEntity user) {
         return userRepository.saveAndFlush(user);
+    }
+
+    @CachePut(cacheNames = "userSite", key = "#userSiteAccount.id")
+    public UserSiteAccountEntity saveUserSiteAccount (UserSiteAccountEntity userSiteAccount) {
+        return userSiteAccountRepository.saveAndFlush(userSiteAccount);
     }
 
     public Long getCountActiveAndNotBannedUsers () {
