@@ -12,8 +12,8 @@ import ru.nikidzawa.datingapp.telegramBot.cache.CacheService;
 import ru.nikidzawa.datingapp.telegramBot.helpers.Messages;
 import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.roles.RolesController;
-import ru.nikidzawa.datingapp.telegramBot.stateMachines.states.StateEnum;
-import ru.nikidzawa.datingapp.telegramBot.stateMachines.states.StateMachine;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateEnum;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateMachine;
 
 import java.util.HashMap;
 import java.util.List;

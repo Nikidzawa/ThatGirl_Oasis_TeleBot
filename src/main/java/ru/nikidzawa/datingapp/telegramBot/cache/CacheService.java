@@ -7,9 +7,8 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import ru.nikidzawa.datingapp.store.entities.user.UserAvatar;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
-import ru.nikidzawa.datingapp.telegramBot.stateMachines.states.StateEnum;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateEnum;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,16 +39,24 @@ public class CacheService {
         cacheManager.getCache("states").evict(userId);
     }
 
+    @SneakyThrows
     public UserEntity getCachedUser(Long userId) {
-        return (UserEntity) cacheManager.getCache("cached_user").get(userId).get();
+        String cachedUserJson = redisTemplate.opsForValue().get("cached_user_" + userId);
+        if (cachedUserJson != null) {
+            return objectMapper.readValue(cachedUserJson, UserEntity.class);
+        }
+        return null;
     }
 
+    @SneakyThrows
     public void putCachedUser(Long userId, UserEntity user) {
-        cacheManager.getCache("cached_user").put(userId, user);
+        String cachedUserJson = objectMapper.writeValueAsString(user);
+        redisTemplate.opsForValue().set("cached_user_" + userId, cachedUserJson);
+        redisTemplate.expire("cached_user_" + userId, 3, TimeUnit.HOURS);
     }
 
     public void evictCachedUser(Long userId) {
-        cacheManager.getCache("cached_user").evict(userId);
+        redisTemplate.delete("cached_user_" + userId);
     }
 
     public Long getComplaintUserId(Long complainSenderId) {
@@ -66,7 +73,7 @@ public class CacheService {
 
     @SneakyThrows
     public List<UserEntity> getCachedProfiles(Long userId) {
-        String cachedProfilesJson = redisTemplate.opsForValue().get("cached_profiles_" + userId);
+        String cachedProfilesJson = redisTemplate.opsForValue().get("recommendations_" + userId);
         if (cachedProfilesJson != null) {
             UserEntity[] userEntities = objectMapper.readValue(cachedProfilesJson, UserEntity[].class);
             return new ArrayList<>(Arrays.asList(userEntities));
@@ -77,33 +84,12 @@ public class CacheService {
     @SneakyThrows
     public void putCachedProfiles(Long userId, List<UserEntity> profiles) {
         String cachedAvatarsJson = objectMapper.writeValueAsString(profiles);
-        redisTemplate.opsForValue().set("cached_profiles_" + userId, cachedAvatarsJson);
-        redisTemplate.expire("cached_profiles_" + userId, 3, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set("recommendations_" + userId, cachedAvatarsJson);
+        redisTemplate.expire("recommendations_" + userId, 3, TimeUnit.HOURS);
     }
 
     public void evictCachedProfiles(Long userId, UserEntity entityToRemove, List<UserEntity> cachedProfiles) {
         cachedProfiles.removeIf(userEntity -> Objects.equals(userEntity.getId(), entityToRemove.getId()));
         putCachedProfiles(userId, cachedProfiles);
-    }
-
-    @SneakyThrows
-    public List<UserAvatar> getUserAvatars(Long userId) {
-        String cachedAvatarsJson = redisTemplate.opsForValue().get("cached_avatars_" + userId);
-        if (cachedAvatarsJson != null) {
-            UserAvatar[] userAvatars = objectMapper.readValue(cachedAvatarsJson, UserAvatar[].class);
-            return new ArrayList<>(Arrays.asList(userAvatars));
-        }
-        return new ArrayList<>();
-    }
-
-    @SneakyThrows
-    public void putUserAvatars(Long userId, List<UserAvatar> userAvatars) {
-        String profilesJson = objectMapper.writeValueAsString(userAvatars);
-        redisTemplate.opsForValue().set("cached_avatars_" + userId, profilesJson);
-        redisTemplate.expire("cached_avatars_" + userId, 12, TimeUnit.HOURS);
-    }
-
-    public void evictUserAvatars (Long userId) {
-        redisTemplate.delete("cached_avatars_" + userId);
     }
 }

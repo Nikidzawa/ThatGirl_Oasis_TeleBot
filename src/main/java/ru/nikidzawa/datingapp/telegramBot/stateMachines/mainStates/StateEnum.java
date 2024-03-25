@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.telegramBot.stateMachines.states;
+package ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates;
 
 
 public enum StateEnum {

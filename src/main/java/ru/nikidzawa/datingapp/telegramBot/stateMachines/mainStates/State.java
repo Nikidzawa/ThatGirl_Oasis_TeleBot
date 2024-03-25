@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.telegramBot.stateMachines.states;
+package ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates;
 
 import org.telegram.telegrambots.meta.api.objects.Message;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;

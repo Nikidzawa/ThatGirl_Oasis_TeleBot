@@ -10,7 +10,7 @@ import ru.nikidzawa.datingapp.telegramBot.cache.CacheService;
 import ru.nikidzawa.datingapp.telegramBot.helpers.Messages;
 import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.commands.CommandStateMachine;
-import ru.nikidzawa.datingapp.telegramBot.stateMachines.states.StateEnum;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateEnum;
 
 import java.util.HashMap;
 import java.util.List;
