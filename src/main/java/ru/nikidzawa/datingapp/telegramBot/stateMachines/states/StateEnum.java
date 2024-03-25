@@ -10,11 +10,13 @@ public enum StateEnum {
     ASK_CITY,
     ASK_HOBBY,
     ASK_ABOUT_ME,
-    ASK_PHOTO,
     RESULT,
 
-    //Редактирование профиля
-    EDIT_PROFILE,
+    //Общее для создания и редактирования анкеты
+    ASK_AVATAR,
+
+    //Профиль
+    MY_PROFILE,
     //
     EDIT_NAME,
     EDIT_AGE,
@@ -23,8 +25,6 @@ public enum StateEnum {
     //
     EDIT_HOBBY,
     EDIT_ABOUT_ME,
-    //
-    EDIT_PHOTO,
     //
     EDIT_RESULT,
 

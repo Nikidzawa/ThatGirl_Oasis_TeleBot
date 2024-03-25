@@ -17,7 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserSiteAccountEntity implements Serializable {
+public class UserSiteAccount implements Serializable {
     @Id
     Long id;
 
@@ -30,11 +30,6 @@ public class UserSiteAccountEntity implements Serializable {
     double latitude;
 
     @JsonIgnore
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_event",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "event_id")
-    )
+    @OneToMany(fetch = FetchType.EAGER)
     List<EventEntity> events = new ArrayList<>();
 }

@@ -42,8 +42,6 @@ public class UserEntity implements Serializable {
     @Column(length = 1000)
     String aboutMe;
 
-    String photo;
-
     double longitude;
 
     double latitude;
@@ -54,9 +52,12 @@ public class UserEntity implements Serializable {
 
     boolean isBanned = false;
 
+    @OneToMany(fetch = FetchType.EAGER)
+    List<UserAvatar> userAvatars;
+
     @JsonIgnore
     @OneToOne(fetch = FetchType.LAZY)
-    UserSiteAccountEntity siteAccount;
+    UserSiteAccount siteAccount;
 
     @JsonIgnore
     @OneToMany(mappedBy = "likedUser", fetch = FetchType.EAGER)

@@ -10,16 +10,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
-import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccountEntity;
+import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccount;
 import ru.nikidzawa.datingapp.store.repositories.EventRepository;
 import ru.nikidzawa.datingapp.store.repositories.UserRepository;
 import ru.nikidzawa.datingapp.store.repositories.UserSiteAccountRepository;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 public class DataBaseApi {
@@ -44,7 +42,7 @@ public class DataBaseApi {
     @CrossOrigin
     @GetMapping("api/getUserSite/{id}")
     @Cacheable(cacheNames = "userSite", key = "#id")
-    public Optional<UserSiteAccountEntity> getUserSite (@PathVariable Long id) {
+    public Optional<UserSiteAccount> getUserSite (@PathVariable Long id) {
         return userSiteAccountRepository.findById(id);
     }
 
@@ -70,19 +68,15 @@ public class DataBaseApi {
     @CrossOrigin
     @PostMapping("api/subscribeEvent/{userId}/{eventId}")
     public ResponseEntity<?> subscribeToEvent(@PathVariable Long userId, @PathVariable Long eventId) {
-        Optional<UserSiteAccountEntity> optionalUserSiteAccount = userSiteAccountRepository.findById(userId);
+        Optional<UserSiteAccount> optionalUserSiteAccount = userSiteAccountRepository.findById(userId);
         Optional<EventEntity> optionalEvent = eventRepository.findById(eventId);
         if (optionalUserSiteAccount.isPresent() && optionalEvent.isPresent()) {
-            UserSiteAccountEntity userSiteAccount = optionalUserSiteAccount.get();
+            UserSiteAccount userSiteAccount = optionalUserSiteAccount.get();
             EventEntity event = optionalEvent.get();
             List<EventEntity> eventEntities = userSiteAccount.getEvents();
-            List<UserSiteAccountEntity> userEntities = event.getUsers();
-            if (eventEntities.contains(event) || userEntities.contains(userSiteAccount)) {
+            if (eventEntities.contains(event)) {
                 return ResponseEntity.badRequest().body("Юзер уже зарегистрирован на это мероприятие");
             } else {
-                userEntities.add(userSiteAccount);
-                eventRepository.saveAndFlush(event);
-
                 eventEntities.add(event);
                 userSiteAccountRepository.saveAndFlush(userSiteAccount);
                 return ResponseEntity.ok().body("Успешно");

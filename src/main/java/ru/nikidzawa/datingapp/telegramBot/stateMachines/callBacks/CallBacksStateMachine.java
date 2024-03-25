@@ -53,7 +53,7 @@ public class CallBacksStateMachine {
 
         @Override
         public void handleCallback(Long myId, Long anotherUserId) {
-            botFunctions.sendMessageAndMarkup(myId, messages.getSEND_COMPLAINT(), botFunctions.cancelButton());
+            botFunctions.sendMessageAndKeyboard(myId, messages.getSEND_COMPLAINT(), botFunctions.cancelButton());
             cacheService.putComplaintUser(myId, anotherUserId);
             cacheService.setState(myId, StateEnum.CALL_BACK_QUERY_COMPLAIN);
         }
@@ -62,7 +62,7 @@ public class CallBacksStateMachine {
 
         @Override
         public void handleCallback(Long myId, Long anotherUserId) {
-            botFunctions.sendMessageAndRemoveMarkup(myId, messages.getBLOCK());
+            botFunctions.sendMessageAndRemoveKeyboard(myId, messages.getBLOCK());
             UserEntity complaintUser = dataBaseService.getUserById(anotherUserId).get();
             List<ComplainEntity> complainEntities = dataBaseService.findByComplaintUser(complaintUser);
             complaintUser.setComplaints(null);
@@ -76,7 +76,7 @@ public class CallBacksStateMachine {
 
         @Override
         public void handleCallback(Long myId, Long anotherUserId) {
-            botFunctions.sendMessageAndRemoveMarkup(myId, messages.getPEACE());
+            botFunctions.sendMessageAndRemoveKeyboard(myId, messages.getPEACE());
             UserEntity complaintUser = dataBaseService.getUserById(anotherUserId).get();
             List<ComplainEntity> complainEntities = dataBaseService.findByComplaintUser(complaintUser);
             complaintUser.setComplaints(null);

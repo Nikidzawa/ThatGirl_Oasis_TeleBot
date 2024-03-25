@@ -37,8 +37,10 @@ public class Messages {
     String NULL_DATA_EDIT;
     @Value("${EDIT_RESULT}")
     String EDIT_RESULT;
-    @Value("${UNEDITED_PHOTO}")
-    String UNEDITED_PHOTO;
+    @Value("${STOP_ADD_AVATAR}")
+    String STOP_ADD_AVATAR;
+    @Value("${SKIP_ADD_AVATAR}")
+    String SKIP_ADD_AVATAR;
     @Value("${UNEDITED_HOBBY}")
     String UNEDITED_HOBBY;
     @Value("${UNEDITED_ABOUT_ME}")

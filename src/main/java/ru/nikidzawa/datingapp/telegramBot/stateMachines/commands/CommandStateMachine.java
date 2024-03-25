@@ -73,7 +73,7 @@ public class CommandStateMachine {
                         stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
                     }
                 }, () -> stateMachine.handleInput(StateEnum.START, userId, null, message, false));
-            } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
+            } else botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
@@ -87,8 +87,8 @@ public class CommandStateMachine {
                         userEntity.setActive(true);
                         dataBaseService.saveUser(userEntity);
                     }
-                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_REGISTER()));
-            } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
+                }, () -> botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_REGISTER()));
+            } else botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
@@ -98,9 +98,9 @@ public class CommandStateMachine {
             if (rolesController.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     cacheService.setState(userId, StateEnum.SEND_ERROR);
-                    botFunctions.sendMessageNotRemoveMarkup(userId, messages.getSEND_ERROR());
-                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_REGISTER()));
-            } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
+                    botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getSEND_ERROR());
+                }, () -> botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_REGISTER()));
+            } else botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
@@ -109,10 +109,10 @@ public class CommandStateMachine {
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
             if (rolesController.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
-                    botFunctions.sendMessageAndMarkup(userId, messages.getFAQ(), botFunctions.faqButtons());
+                    botFunctions.sendMessageAndKeyboard(userId, messages.getFAQ(), botFunctions.faqButtons());
                     cacheService.setState(userId, StateEnum.FAQ);
-                }, () -> botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_REGISTER()));
-            } else botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
+                }, () -> botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_REGISTER()));
+            } else botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
@@ -120,7 +120,7 @@ public class CommandStateMachine {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
             if (rolesController.superRoles.contains(role)) {
-                botFunctions.sendMessageAndRemoveMarkup(userId, "Идёт анализ, пожалуйста, подождите...");
+                botFunctions.sendMessageAndRemoveKeyboard(userId, "Идёт анализ, пожалуйста, подождите...");
                 String[] results = dataBaseService.findTop10CitiesByUserCount();
                 Long size = dataBaseService.getCountActiveAndNotBannedUsers();
                 StringBuilder stringBuilder = new StringBuilder();
@@ -135,7 +135,7 @@ public class CommandStateMachine {
 
                 stringBuilder.append("\n").append("Число активных пользователей: ").append(size);
 
-                botFunctions.sendMessageNotRemoveMarkup(userId, stringBuilder.toString());
+                botFunctions.sendMessageNotRemoveKeyboard(userId, stringBuilder.toString());
             }
         }
         private String wordParser (String count) {
@@ -156,13 +156,13 @@ public class CommandStateMachine {
                 List<ErrorEntity> errorEntities = dataBaseService.findAllErrors();
                 Optional<ErrorEntity> optionalError = errorEntities.stream().findAny();
                 optionalError.ifPresentOrElse(errorEntity -> {
-                    botFunctions.sendMessageNotRemoveMarkup(
+                    botFunctions.sendMessageNotRemoveKeyboard(
                             userId,
                             "Ошибка номер: " + errorEntity.getId() + "\nОписание ошибки: " + errorEntity.getDescription()
 
                     );
                     dataBaseService.deleteError(errorEntity);
-                }, () -> botFunctions.sendMessageNotRemoveMarkup(userId, "Больше жалоб не поступало"));
+                }, () -> botFunctions.sendMessageNotRemoveKeyboard(userId, "Больше жалоб не поступало"));
             }
         }
     }
@@ -181,14 +181,14 @@ public class CommandStateMachine {
         Optional<ComplainEntity> optionalComplain = complainEntities.stream().findAny();
         optionalComplain.ifPresentOrElse(complainEntity -> {
             UserEntity complainUser = complainEntity.getComplaintUser();
-            botFunctions.sendMessageAndRemoveMarkup(
+            botFunctions.sendMessageAndRemoveKeyboard(
                     userId,
                     "Жалоба номер: " + complainEntity.getId()  +
                     "\nОбщее число жалоб на пользователя: " + countComplainsByUserId(complainEntities, complainUser.getId())
             );
             botFunctions.sendDatingProfileAndJudgeButtons(userId, complainUser);
-            botFunctions.sendMessageNotRemoveMarkup(userId, "Описание жалобы: " + complainEntity.getDescription());
-        }, () -> botFunctions.sendMessageNotRemoveMarkup(userId, "Больше жалоб не поступало"));
+            botFunctions.sendMessageNotRemoveKeyboard(userId, "Описание жалобы: " + complainEntity.getDescription());
+        }, () -> botFunctions.sendMessageNotRemoveKeyboard(userId, "Больше жалоб не поступало"));
     }
 
     private long countComplainsByUserId (List<ComplainEntity> complainEntities, Long userId) {

@@ -85,8 +85,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                 if (!userEntity.isBanned() && userEntity.isActive()) {
                     String[] response = update.getCallbackQuery().getData().split(",");
                     callBacksStateMachine.handleCallback(response[0], userId, Long.parseLong(response[1]));
-                } else {botFunctions.sendMessageNotRemoveMarkup(userId, messages.getROLE_EXCEPTION());}
-            }, () -> botFunctions.sendMessageNotRemoveMarkup(userId, messages.getNOT_REGISTER()));
+                } else {botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getROLE_EXCEPTION());}
+            }, () -> botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_REGISTER()));
             return;
         }
         Message message = update.getMessage();
@@ -115,7 +115,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private boolean isSubscribe (Long userId, String role) {
         if (rolesController.allRoles.contains(role)) {return true;}
         else {
-            botFunctions.sendMessageAndRemoveMarkup(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
+            botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
             return false;
         }
     }
@@ -140,7 +140,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                             stateMachine.handleInput(StateEnum.SUPER_MENU, userId, user, message, true);
                         }
                     } else {
-                        botFunctions.sendMessageAndRemoveMarkup(userId, messages.getWAIT_TIME_OUT_EXCEPTION());
+                        botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getWAIT_TIME_OUT_EXCEPTION());
                         stateMachine.goToMenu(userId, user);
                     }
                 } else {

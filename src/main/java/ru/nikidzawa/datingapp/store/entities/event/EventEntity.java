@@ -1,14 +1,10 @@
 package ru.nikidzawa.datingapp.store.entities.event;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
-import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccountEntity;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.Serializable;
 
 @Entity
 @Getter
@@ -17,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class EventEntity {
+public class EventEntity implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
@@ -48,8 +44,4 @@ public class EventEntity {
 
     @Column(length = 10000)
     String image;
-
-    @JsonIgnore
-    @ManyToMany(mappedBy = "events", fetch = FetchType.LAZY)
-    List<UserSiteAccountEntity> users = new ArrayList<>();
 }

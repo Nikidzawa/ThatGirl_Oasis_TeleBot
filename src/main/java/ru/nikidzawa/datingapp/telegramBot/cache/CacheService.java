@@ -7,6 +7,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import ru.nikidzawa.datingapp.store.entities.user.UserAvatar;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.states.StateEnum;
 
@@ -75,13 +76,34 @@ public class CacheService {
 
     @SneakyThrows
     public void putCachedProfiles(Long userId, List<UserEntity> profiles) {
-        String profilesJson = objectMapper.writeValueAsString(profiles);
-        redisTemplate.opsForValue().set("cached_profiles_" + userId, profilesJson);
-        redisTemplate.expire("cached_profiles_" + userId, 12, TimeUnit.HOURS);
+        String cachedAvatarsJson = objectMapper.writeValueAsString(profiles);
+        redisTemplate.opsForValue().set("cached_profiles_" + userId, cachedAvatarsJson);
+        redisTemplate.expire("cached_profiles_" + userId, 3, TimeUnit.HOURS);
     }
 
     public void evictCachedProfiles(Long userId, UserEntity entityToRemove, List<UserEntity> cachedProfiles) {
         cachedProfiles.removeIf(userEntity -> Objects.equals(userEntity.getId(), entityToRemove.getId()));
         putCachedProfiles(userId, cachedProfiles);
+    }
+
+    @SneakyThrows
+    public List<UserAvatar> getUserAvatars(Long userId) {
+        String cachedAvatarsJson = redisTemplate.opsForValue().get("cached_avatars_" + userId);
+        if (cachedAvatarsJson != null) {
+            UserAvatar[] userAvatars = objectMapper.readValue(cachedAvatarsJson, UserAvatar[].class);
+            return new ArrayList<>(Arrays.asList(userAvatars));
+        }
+        return new ArrayList<>();
+    }
+
+    @SneakyThrows
+    public void putUserAvatars(Long userId, List<UserAvatar> userAvatars) {
+        String profilesJson = objectMapper.writeValueAsString(userAvatars);
+        redisTemplate.opsForValue().set("cached_avatars_" + userId, profilesJson);
+        redisTemplate.expire("cached_avatars_" + userId, 12, TimeUnit.HOURS);
+    }
+
+    public void evictUserAvatars (Long userId) {
+        redisTemplate.delete("cached_avatars_" + userId);
     }
 }

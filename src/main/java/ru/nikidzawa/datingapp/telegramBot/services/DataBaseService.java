@@ -7,8 +7,9 @@ import org.springframework.stereotype.Service;
 import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
 import ru.nikidzawa.datingapp.store.entities.error.ErrorEntity;
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
+import ru.nikidzawa.datingapp.store.entities.user.UserAvatar;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
-import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccountEntity;
+import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccount;
 import ru.nikidzawa.datingapp.store.repositories.*;
 
 import java.util.List;
@@ -32,6 +33,9 @@ public class DataBaseService {
     @Autowired
     private UserSiteAccountRepository userSiteAccountRepository;
 
+    @Autowired
+    private UserAvatarRepository userAvatarRepository;
+
     @Cacheable(cacheNames = "user", key = "#id")
     public Optional<UserEntity> getUserById (Long id) {
         return userRepository.findById(id);
@@ -43,8 +47,12 @@ public class DataBaseService {
     }
 
     @CachePut(cacheNames = "userSite", key = "#userSiteAccount.id")
-    public UserSiteAccountEntity saveUserSiteAccount (UserSiteAccountEntity userSiteAccount) {
+    public UserSiteAccount saveUserSiteAccount (UserSiteAccount userSiteAccount) {
         return userSiteAccountRepository.saveAndFlush(userSiteAccount);
+    }
+
+    public List<UserAvatar> saveAllUserAvatars (List<UserAvatar> userAvatars) {
+        return userAvatarRepository.saveAllAndFlush(userAvatars);
     }
 
     public Long getCountActiveAndNotBannedUsers () {
