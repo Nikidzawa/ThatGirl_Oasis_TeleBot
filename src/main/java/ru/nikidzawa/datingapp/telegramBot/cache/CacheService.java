@@ -23,7 +23,7 @@ public class CacheService {
     CacheManager cacheManager;
 
     @Autowired
-    private RedisTemplate<String, String> redisTemplate;
+    RedisTemplate<String, String> redisTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

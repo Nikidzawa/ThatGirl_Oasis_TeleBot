@@ -2,7 +2,7 @@ package ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates;
 
 
 public enum StateEnum {
-    //Регистрация
+    //Регистрация и заполнение анкеты с нуля
     START,
     START_HANDLE,
     ASK_NAME,
@@ -10,12 +10,10 @@ public enum StateEnum {
     ASK_CITY,
     ASK_HOBBY,
     ASK_ABOUT_ME,
+    ASK_AVATAR,
     RESULT,
 
-    //Общее для создания и редактирования анкеты
-    ASK_AVATAR,
-
-    //Профиль
+    //Профиль и редактирование
     MY_PROFILE,
     //
     EDIT_NAME,
@@ -25,6 +23,8 @@ public enum StateEnum {
     //
     EDIT_HOBBY,
     EDIT_ABOUT_ME,
+    //
+    EDIT_AVATAR,
     //
     EDIT_RESULT,
 

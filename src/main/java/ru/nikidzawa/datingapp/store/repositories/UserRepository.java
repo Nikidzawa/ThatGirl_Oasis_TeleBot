@@ -3,7 +3,6 @@ package ru.nikidzawa.datingapp.store.repositories;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 
 import java.util.List;

@@ -19,8 +19,8 @@ public class Messages {
     String ASK_HOBBY;
     @Value("${ASK_ABOUT_ME}")
     String ASK_ABOUT_ME;
-    @Value("${ASK_PHOTO}")
-    String ASK_PHOTO;
+    @Value("${ASK_AVATAR}")
+    String ASK_AVATAR;
     @Value("${RESULT}")
     String RESULT;
 
@@ -51,8 +51,8 @@ public class Messages {
     //MENU
     @Value("${MENU}")
     String MENU;
-    @Value("${EDIT_PROFILE}")
-    String EDIT_PROFILE;
+    @Value("${MY_PROFILE}")
+    String MY_PROFILE;
 
     //LEFT GROUP OR DISABLE PROFILE
     @Value("${LEFT}")
@@ -81,6 +81,8 @@ public class Messages {
     String WAIT_TIME_OUT_EXCEPTION;
     @Value("${ROLE_EXCEPTION}")
     String ROLE_EXCEPTION;
+    @Value("${NOT_ENOUGH}")
+    String NOT_ENOUGH;
 
     //COMMANDS
     @Value("${FAQ}")

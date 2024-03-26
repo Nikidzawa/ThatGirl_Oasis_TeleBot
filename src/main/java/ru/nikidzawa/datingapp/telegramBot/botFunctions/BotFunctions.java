@@ -24,13 +24,13 @@ import ru.nikidzawa.datingapp.store.entities.user.UserAvatar;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.telegramBot.TelegramBot;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.*;
 
 import static java.lang.Math.*;
 
@@ -138,6 +138,23 @@ public class BotFunctions {
         sendMessage.setText(message);
         sendMessage.setReplyMarkup(replyKeyboardMarkup);
         telegramBot.execute(sendMessage);
+    }
+
+    private static SendMediaGroup getSendMediaGroup(Long userId, UserEntity userEntity) {
+        List<UserAvatar> avatars = userEntity.getUserAvatars();
+
+        List<InputMedia> inputMedia = new ArrayList<>();
+        avatars.forEach(userAvatar -> {
+            if (userAvatar.isPhoto()) {
+                inputMedia.add(new InputMediaPhoto(userAvatar.getFile()));
+            } else {
+                inputMedia.add(new InputMediaVideo(userAvatar.getFile()));
+            }
+        });
+        return SendMediaGroup.builder()
+                .medias(inputMedia)
+                .chatId(userId)
+                .build();
     }
 
     public ReplyKeyboardMarkup menuButtons() {return keyboardMarkupBuilder(List.of("1", "2", "3"));}
@@ -327,7 +344,8 @@ public class BotFunctions {
                 .getFileId();
     }
 
-    private InputFile getInputFile(String fileId) throws TelegramApiException, IOException {
+    @SneakyThrows
+    private InputFile getInputFile(String fileId) {
         GetFile getFile = new GetFile(fileId);
         File file = telegramBot.execute(getFile);
         String filePath = file.getFilePath();
@@ -338,9 +356,7 @@ public class BotFunctions {
 
     @SneakyThrows
     public void sendDatingProfile(Long userId, UserEntity userEntity) {
-        ExecutorService executor = Executors.newFixedThreadPool(1);
-
-        Future<String> parseHobbyFuture = executor.submit(() -> {
+        CompletableFuture<String> parseHobbyFuture = CompletableFuture.supplyAsync(() -> {
             String hobby = userEntity.getHobby();
             if (hobby != null) {
                 return parseHobby(hobby);
@@ -348,14 +364,22 @@ public class BotFunctions {
             return "";
         });
 
-        String aboutMe = userEntity.getAboutMe();
-        String userName = userEntity.getName();
-        String age = String.valueOf(userEntity.getAge());
-        String location = userEntity.getLocation();
-        String hobby = parseHobbyFuture.get();
-        String profileInfo = userName + ", " + age + ", " + location + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
+        CompletableFuture<List<UserAvatar>> userAvatarsFuture = CompletableFuture.supplyAsync(userEntity::getUserAvatars);
 
-        List<UserAvatar> userAvatars = userEntity.getUserAvatars();
+        CompletableFuture<String> profileInfoFuture = parseHobbyFuture.thenApplyAsync(hobby -> {
+            String aboutMe = userEntity.getAboutMe();
+            String userName = userEntity.getName();
+            String age = String.valueOf(userEntity.getAge());
+            String location = userEntity.getLocation();
+            return userName + ", " + age + ", " + location + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
+        });
+
+        profileInfoFuture.thenAccept(profileInfo -> loadUserAvatars(userId, userEntity, profileInfo, userAvatarsFuture));
+    }
+
+    @SneakyThrows
+    private void loadUserAvatars(Long userId, UserEntity userEntity, String profileInfo, CompletableFuture<List<UserAvatar>> userAvatarsFuture) {
+        List<UserAvatar> userAvatars = userAvatarsFuture.get();
         if (userAvatars.size() > 1) {
             SendMediaGroup sendMediaGroup = getSendMediaGroup(userId, userEntity);
             sendMediaGroup.getMedias().getFirst().setCaption(profileInfo);
@@ -376,38 +400,18 @@ public class BotFunctions {
                         .build());
             }
         }
-        executor.shutdown();
-    }
-
-    private static SendMediaGroup getSendMediaGroup(Long userId, UserEntity userEntity) {
-        List<UserAvatar> avatars = userEntity.getUserAvatars();
-
-        List<InputMedia> inputMedia = new ArrayList<>();
-        avatars.forEach(userAvatar -> {
-            if (userAvatar.isPhoto()) {
-                inputMedia.add(new InputMediaPhoto(userAvatar.getFile()));
-            } else {
-                inputMedia.add(new InputMediaVideo(userAvatar.getFile()));
-            }
-        });
-        return SendMediaGroup.builder()
-                .medias(inputMedia)
-                .chatId(userId)
-                .build();
     }
 
     @SneakyThrows
     public void sendOtherProfile(Long userId, UserEntity anotherUser, UserEntity myProfile) {
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-
-        Future<String> distanceFuture = executor.submit(() -> {
+        CompletableFuture<String> distanceFuture = CompletableFuture.supplyAsync(() -> {
             if (myProfile.isShowGeo() && anotherUser.isShowGeo()) {
                 return getDistance(anotherUser, myProfile);
             }
             return "";
         });
 
-        Future<String> parseHobbyFuture = executor.submit(() -> {
+        CompletableFuture<String> parseHobbyFuture = CompletableFuture.supplyAsync(() -> {
             String hobby = anotherUser.getHobby();
             if (hobby != null) {
                 return parseHobby(hobby);
@@ -415,36 +419,19 @@ public class BotFunctions {
             return "";
         });
 
-        String aboutMe = anotherUser.getAboutMe();
-        String userName = anotherUser.getName();
-        String age = String.valueOf(anotherUser.getAge());
-        String location = anotherUser.getLocation();
-        String distance = distanceFuture.get();
-        String hobby = parseHobbyFuture.get();
-        String profileInfo = userName + ", " + age + ", " + location + distance + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
+        CompletableFuture<List<UserAvatar>> userAvatarsFuture = CompletableFuture.supplyAsync(anotherUser::getUserAvatars);
 
-        List<UserAvatar> userAvatars = anotherUser.getUserAvatars();
-        if (userAvatars.size() > 1) {
-            SendMediaGroup sendMediaGroup = getSendMediaGroup(userId, anotherUser);
-            sendMediaGroup.getMedias().getFirst().setCaption(profileInfo);
-            telegramBot.execute(sendMediaGroup);
-        } else {
-            UserAvatar firstAvatar = userAvatars.getFirst();
-            if (firstAvatar.isPhoto()) {
-                telegramBot.execute(SendPhoto.builder()
-                        .chatId(userId)
-                        .photo(getInputFile(firstAvatar.getFile()))
-                        .caption(profileInfo)
-                        .build());
-            } else {
-                telegramBot.execute(SendVideo.builder()
-                        .chatId(userId)
-                        .video(getInputFile(firstAvatar.getFile()))
-                        .caption(profileInfo)
-                        .build());
-            }
-        }
-        executor.shutdown();
+        CompletableFuture<String> profileInfoFuture = CompletableFuture.allOf(distanceFuture, parseHobbyFuture)
+                .thenApplyAsync(ignored -> {
+                    String aboutMe = anotherUser.getAboutMe();
+                    String userName = anotherUser.getName();
+                    String age = String.valueOf(anotherUser.getAge());
+                    String location = anotherUser.getLocation();
+                    String distance = distanceFuture.join();
+                    String hobby = parseHobbyFuture.join();
+                    return userName + ", " + age + ", " + location + distance + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
+                });
+        profileInfoFuture.thenAccept(profileInfo -> loadUserAvatars(userId, anotherUser, profileInfo, userAvatarsFuture));
     }
 
     private String getDistance(UserEntity anotherUser, UserEntity me) {

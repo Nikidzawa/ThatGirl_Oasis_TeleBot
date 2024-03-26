@@ -30,22 +30,22 @@ import java.util.Objects;
 public class StateMachine {
 
     @Autowired
-    protected CacheService cacheService;
+    private CacheService cacheService;
 
     @Autowired
-    protected DataBaseService dataBaseService;
+    private DataBaseService dataBaseService;
 
     @Autowired
-    protected Messages messages;
+    private Messages messages;
 
     @Autowired
-    protected JsonParser jsonParser;
+    private JsonParser jsonParser;
 
     @Autowired
-    protected GeocodingApi geocodingApi;
+    private GeocodingApi geocodingApi;
 
     @Setter
-    protected BotFunctions botFunctions;
+    private BotFunctions botFunctions;
 
     private final HashMap<StateEnum, State> textStates;
     private final HashMap<StateEnum, State> photoStates;
@@ -67,6 +67,7 @@ public class StateMachine {
         textStates.put(StateEnum.WELCOME_BACK, new WelcomeBack());
         textStates.put(StateEnum.WELCOME_BACK_HANDLE, new WelcomeBackHandle());
 
+        textStates.put(StateEnum.ASK_BEFORE_OFF, new AskBeforeOff());
         textStates.put(StateEnum.LEFT, new Left());
 
         textStates.put(StateEnum.ASK_NAME, new AskName());
@@ -74,20 +75,21 @@ public class StateMachine {
         textStates.put(StateEnum.ASK_CITY, new AskCity());
         textStates.put(StateEnum.ASK_HOBBY, new AskHobby());
         textStates.put(StateEnum.ASK_ABOUT_ME, new AskAboutMe());
+        textStates.put(StateEnum.ASK_AVATAR, new FinishRegisterAddAvatar());
         textStates.put(StateEnum.RESULT, new Result());
 
         textStates.put(StateEnum.MENU, new Menu());
         textStates.put(StateEnum.SUPER_MENU, new SuperMenu());
 
+        textStates.put(StateEnum.MY_PROFILE, new MyProfile());
         textStates.put(StateEnum.EDIT_NAME, new EditName());
         textStates.put(StateEnum.EDIT_AGE, new EditAge());
         textStates.put(StateEnum.EDIT_CITY, new EditCity());
-        textStates.put(StateEnum.EDIT_RESULT, new EditResult());
-        textStates.put(StateEnum.MY_PROFILE, new MyProfile());
         textStates.put(StateEnum.EDIT_HOBBY, new EditHobby());
         textStates.put(StateEnum.EDIT_ABOUT_ME, new EditAboutMe());
-        textStates.put(StateEnum.ASK_BEFORE_OFF, new AskBeforeOff());
-        textStates.put(StateEnum.ASK_AVATAR, new RegisterEndAddAvatar());
+        textStates.put(StateEnum.EDIT_AVATAR, new FinishEditAvatar());
+        textStates.put(StateEnum.EDIT_RESULT, new EditResult());
+
         textStates.put(StateEnum.FIND_PEOPLES, new FindPeoples());
         textStates.put(StateEnum.SHOW_WHO_LIKED_ME, new ShowWhoLikedMe());
         textStates.put(StateEnum.SHOW_PROFILES_WHO_LIKED_ME, new ShowProfilesWhoLikedMe());
@@ -99,6 +101,7 @@ public class StateMachine {
         textStates.put(StateEnum.SEND_ERROR, new SendError());
 
         photoStates.put(StateEnum.ASK_AVATAR, new AddAvatarPhoto());
+        photoStates.put(StateEnum.EDIT_AVATAR, new AddAvatarPhoto());
         photoStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessagePhoto());
 
         locationStates.put(StateEnum.ASK_CITY, new AskCityGeo());
@@ -106,6 +109,7 @@ public class StateMachine {
 
         audioStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageAudio());
         videoStates.put(StateEnum.ASK_AVATAR, new AddAvatarVideo());
+        videoStates.put(StateEnum.EDIT_AVATAR, new AddAvatarVideo());
         videoStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageVideo());
         videoNoteStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageVideoNote());
     }
@@ -337,6 +341,11 @@ public class StateMachine {
                 }
                 cacheService.putCachedUser(userId, user);
             }
+            if (hasBeenRegistered) {
+                botFunctions.sendMessageAndKeyboard(userId, messages.getASK_AVATAR(), botFunctions.customButton(messages.getSKIP_ADD_AVATAR()));
+            } else {
+                botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getASK_AVATAR());
+            }
             cacheService.setState(userId, StateEnum.ASK_AVATAR);
         }
     }
@@ -346,6 +355,10 @@ public class StateMachine {
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             UserEntity cachedUser = cacheService.getCachedUser(userId);
             List<UserAvatar> avatars = cachedUser.getUserAvatars();
+            if (avatars == null) {
+                avatars = new ArrayList<>();
+                cachedUser.setUserAvatars(avatars);
+            }
             avatars.add(UserAvatar.builder()
                     .file(botFunctions.loadPhoto(message.getPhoto()))
                     .isPhoto(true)
@@ -359,9 +372,7 @@ public class StateMachine {
             }
             if (avatarSize == 3) {
                 if (hasBeenRegistered) {
-                    botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
-                    botFunctions.sendDatingProfile(userId, cachedUser);
-                    cacheService.setState(userId, StateEnum.EDIT_RESULT);
+                    goToEditResult(userId, cachedUser);
                 } else {
                     botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getRESULT());
                     botFunctions.sendDatingProfile(userId, cachedUser);
@@ -379,6 +390,10 @@ public class StateMachine {
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             UserEntity cachedUser = cacheService.getCachedUser(userId);
             List<UserAvatar> avatars = cachedUser.getUserAvatars();
+            if (avatars == null) {
+                avatars = new ArrayList<>();
+                cachedUser.setUserAvatars(avatars);
+            }
             avatars.add(UserAvatar.builder()
                     .file(message.getVideo().getFileId())
                     .isPhoto(false)
@@ -386,15 +401,13 @@ public class StateMachine {
             int avatarSize = avatars.size();
             cacheService.putCachedUser(userId, cachedUser);
             if (hasBeenRegistered) {
-                botFunctions.sendMessageAndKeyboard(userId, messages.getASK_PHOTO(), botFunctions.customButton(messages.getSKIP_ADD_AVATAR()));
+                botFunctions.sendMessageAndKeyboard(userId, "Видео загружено ( " + avatarSize + " из 3 )", botFunctions.customButton(messages.getSKIP_ADD_AVATAR(), messages.getSTOP_ADD_AVATAR()));
             } else {
-                botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getASK_PHOTO());
+                botFunctions.sendMessageAndKeyboard(userId, "Видео загружено ( " + avatarSize + " из 3 )", botFunctions.customButton(messages.getSTOP_ADD_AVATAR()));
             }
             if (avatarSize == 3) {
                 if (hasBeenRegistered) {
-                    botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
-                    botFunctions.sendDatingProfile(userId, cachedUser);
-                    cacheService.setState(userId, StateEnum.EDIT_RESULT);
+                    goToEditResult(userId, cachedUser);
                 } else {
                     botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getRESULT());
                     botFunctions.sendDatingProfile(userId, cachedUser);
@@ -407,25 +420,31 @@ public class StateMachine {
         }
     }
 
-    private class RegisterEndAddAvatar implements State {
+    private class FinishRegisterAddAvatar implements State {
 
         private final HashMap<String, State> states;
 
-        public RegisterEndAddAvatar() {
+        public FinishRegisterAddAvatar() {
             states = new HashMap<>();
-            states.put(messages.getSKIP_ADD_AVATAR(), new SkipAddAvatar());
-            states.put(messages.getSTOP_ADD_AVATAR(), new StopAddAvatar());
+            states.put("Не изменять", new SkipAddAvatar());
+            states.put("Готово", new StopAddAvatar());
         }
 
         private class SkipAddAvatar implements State {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-                UserEntity cachedUser = cacheService.getCachedUser(userId);
-                cachedUser.setUserAvatars(userEntity.getUserAvatars());
-                cacheService.putCachedUser(userId, cachedUser);
-                botFunctions.sendMessageAndKeyboard(userId, messages.getRESULT(), botFunctions.resultButtons());
-                botFunctions.sendDatingProfile(userId, cachedUser);
-                cacheService.setState(userId, StateEnum.RESULT);
+                if (hasBeenRegistered) {
+                    UserEntity cachedUser = cacheService.getCachedUser(userId);
+                    cachedUser.setUserAvatars(userEntity.getUserAvatars());
+                    goToEditResult(userId, cachedUser);
+                } else {
+                    UserEntity cachedUser = cacheService.getCachedUser(userId);
+                    cachedUser.setUserAvatars(userEntity.getUserAvatars());
+                    cacheService.putCachedUser(userId, cachedUser);
+                    botFunctions.sendMessageAndKeyboard(userId, messages.getRESULT(), botFunctions.resultButtons());
+                    botFunctions.sendDatingProfile(userId, cachedUser);
+                    cacheService.setState(userId, StateEnum.RESULT);
+                }
             }
         }
         private class StopAddAvatar implements State {
@@ -434,9 +453,13 @@ public class StateMachine {
                 UserEntity cachedUser = cacheService.getCachedUser(userId);
                 List<UserAvatar> userAvatars = cachedUser.getUserAvatars();
                 if (!userAvatars.isEmpty()) {
-                    botFunctions.sendMessageAndKeyboard(userId, messages.getRESULT(), botFunctions.resultButtons());
-                    botFunctions.sendDatingProfile(userId, cachedUser);
-                    cacheService.setState(userId, StateEnum.RESULT);
+                    if (hasBeenRegistered) {
+                        goToEditResult(userId, cachedUser);
+                    } else {
+                        botFunctions.sendMessageAndKeyboard(userId, messages.getRESULT(), botFunctions.resultButtons());
+                        botFunctions.sendDatingProfile(userId, cachedUser);
+                        cacheService.setState(userId, StateEnum.RESULT);
+                    }
                 } else {
                     botFunctions.sendMessageNotRemoveKeyboard(userId, "Необходимо добавить хотя бы одну фотографию");
                 }
@@ -602,10 +625,11 @@ public class StateMachine {
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             String messageText = message.getText();
             if (messageText.equals("Выключить анкету")) {
-                botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getLEFT());
+                botFunctions.sendMessageAndKeyboard(userId, messages.getLEFT(), botFunctions.restartButton());
                 userEntity.setActive(false);
                 dataBaseService.saveUser(userEntity);
                 cacheService.evictState(userId);
+                cacheService.evictCachedUser(userId);
             } else if (messageText.equals("Я передумала")) {
                 goToMenu(userId, userEntity);
             }
@@ -627,7 +651,7 @@ public class StateMachine {
 
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-                botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_NAME(), botFunctions.skipButton());
+                botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_NAME(), botFunctions.customButton(userEntity.getName()));
                 cacheService.setState(userId, StateEnum.EDIT_NAME);
                 cacheService.putCachedUser(userId, userEntity);
             }
@@ -661,7 +685,7 @@ public class StateMachine {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
                 botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_PHOTO(), botFunctions.customButton(messages.getSKIP_ADD_AVATAR()));
-                cacheService.setState(userId, StateEnum.ASK_AVATAR);
+                cacheService.setState(userId, StateEnum.EDIT_AVATAR);
                 userEntity.setUserAvatars(new ArrayList<>());
                 cacheService.putCachedUser(userId, userEntity);
             }
@@ -716,7 +740,7 @@ public class StateMachine {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
             String messageText = message.getText();
-            UserEntity user = cacheService.getCachedUser(userId);
+            UserEntity cachedUser = cacheService.getCachedUser(userId);
             if (!messageText.equals(String.valueOf(userEntity.getAge()))) {
                 int age;
                 try {
@@ -725,19 +749,16 @@ public class StateMachine {
                         botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getAGE_LIMIT_SYMBOLS_EXCEPTIONS());
                         return;
                     }
-                    user.setAge(age);
+                    cachedUser.setAge(age);
                 } catch (Exception ex) {
                     botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getIS_NOT_A_NUMBER_EXCEPTION());
                     return;
                 }
             }
-            if (!user.getName().equals(userEntity.getName()) || user.getAge() != userEntity.getAge()) {
-                cacheService.putCachedUser(userId, user);
-                botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
-                botFunctions.sendDatingProfile(userId, user);
-                cacheService.setState(userId, StateEnum.EDIT_RESULT);
-            } else {
+            if (cachedUser.getName().equals(userEntity.getName()) && cachedUser.getAge() == userEntity.getAge()) {
                 returnProfileWithoutChanges(userId, userEntity);
+            } else {
+                goToEditResult(userId, cachedUser);
             }
         }
     }
@@ -754,10 +775,7 @@ public class StateMachine {
                 Geocode geocode = jsonParser.parseGeocode(geocodingApi.getCoordinates(messageText));
                 userEntity.setLongitude(geocode.getLon());
                 userEntity.setLatitude(geocode.getLat());
-                botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
-                botFunctions.sendDatingProfile(userId, userEntity);
-                cacheService.putCachedUser(userId, userEntity);
-                cacheService.setState(userId, StateEnum.EDIT_RESULT);
+                goToEditResult(userId, userEntity);
             } else {
                 returnProfileWithoutChanges(userId, userEntity);
             }
@@ -775,10 +793,7 @@ public class StateMachine {
             userEntity.setLocation(jsonParser.getName(geocodingApi.getCityName(latitude, longitude)));
             userEntity.setShowGeo(true);
 
-            botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
-            botFunctions.sendDatingProfile(userId, userEntity);
-            cacheService.putCachedUser(userId, userEntity);
-            cacheService.setState(userId, StateEnum.EDIT_RESULT);
+            goToEditResult(userId, userEntity);
         }
     }
 
@@ -807,6 +822,7 @@ public class StateMachine {
             cacheService.setState(userId, StateEnum.EDIT_ABOUT_ME);
         }
     }
+
     private class EditAboutMe implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
@@ -823,13 +839,48 @@ public class StateMachine {
                     cachedUser.setAboutMe(messageText);
                 }
             }
-            if (!Objects.equals(cachedUser.getHobby(), userEntity.getHobby()) || !Objects.equals(cachedUser.getAboutMe(), userEntity.getAboutMe())) {
-                botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
-                botFunctions.sendDatingProfile(userId, cachedUser);
-                cacheService.putCachedUser(userId, cachedUser);
-                cacheService.setState(userId, StateEnum.EDIT_RESULT);
-            } else {
+            if (Objects.equals(cachedUser.getHobby(),userEntity.getHobby()) && Objects.equals(cachedUser.getAboutMe(), userEntity.getAboutMe())) {
                 returnProfileWithoutChanges(userId, userEntity);
+            } else {
+                goToEditResult(userId, cachedUser);
+            }
+        }
+    }
+
+    private class FinishEditAvatar implements State {
+
+        private final HashMap<String, State> states;
+
+        public FinishEditAvatar() {
+            states = new HashMap<>();
+            states.put("Не изменять", new SkipAddAvatar());
+            states.put("Готово", new StopAddAvatar());
+        }
+
+        private class SkipAddAvatar implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                goToProfile(userId, userEntity);
+            }
+        }
+
+        private class StopAddAvatar implements State {
+            @Override
+            public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+                UserEntity cachedUser = cacheService.getCachedUser(userId);
+                List<UserAvatar> userAvatars = cachedUser.getUserAvatars();
+                if (!userAvatars.isEmpty()) {
+                    goToEditResult(userId, cachedUser);
+                } else {
+                    botFunctions.sendMessageNotRemoveKeyboard(userId, "Необходимо добавить хотя бы одну фотографию");
+                }
+            }
+        }
+        @Override
+        public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            State state = states.get(message.getText());
+            if (state != null) {
+                state.handleInput(userId, userEntity, message, hasBeenRegistered);
             }
         }
     }
@@ -848,7 +899,7 @@ public class StateMachine {
                 }).start();
             }
             else if (messageText.equals("Отменить")) {
-                returnProfileWithoutChanges(userId, userEntity);
+                goToProfile(userId, userEntity);
             }
         }
     }
@@ -1210,19 +1261,23 @@ public class StateMachine {
         }
     }
 
+    private void goToEditResult(Long userId, UserEntity cachedUser) {
+        botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_RESULT(), botFunctions.editResultButtons());
+        botFunctions.sendDatingProfile(userId, cachedUser);
+        cacheService.putCachedUser(userId, cachedUser);
+        cacheService.setState(userId, StateEnum.EDIT_RESULT);
+    }
+
     private void goToProfile(Long userId, UserEntity userEntity) {
         botFunctions.sendDatingProfile(userId, userEntity);
-        botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_PROFILE(), botFunctions.myProfileButtons());
+        botFunctions.sendMessageAndKeyboard(userId, messages.getMY_PROFILE(), botFunctions.myProfileButtons());
         cacheService.setState(userId, StateEnum.MY_PROFILE);
         cacheService.evictCachedUser(userId);
     }
 
     private void returnProfileWithoutChanges(Long userId, UserEntity userEntity) {
         botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNULL_DATA_EDIT());
-        botFunctions.sendDatingProfile(userId, userEntity);
-        botFunctions.sendMessageAndKeyboard(userId, messages.getEDIT_PROFILE(), botFunctions.myProfileButtons());
-        cacheService.setState(userId, StateEnum.MY_PROFILE);
-        cacheService.evictCachedUser(userId);
+        goToProfile(userId, userEntity);
     }
 
     public List<UserEntity> getRecommendation(UserEntity myProfile, Long userId) {

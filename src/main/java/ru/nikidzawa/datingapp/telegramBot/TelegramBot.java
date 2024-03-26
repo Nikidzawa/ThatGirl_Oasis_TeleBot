@@ -17,9 +17,9 @@ import ru.nikidzawa.datingapp.telegramBot.helpers.Messages;
 import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.callBacks.CallBacksStateMachine;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.commands.CommandStateMachine;
-import ru.nikidzawa.datingapp.telegramBot.stateMachines.roles.RolesController;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateEnum;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateMachine;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.roles.RolesController;
 
 import java.util.HashSet;
 import java.util.List;
@@ -59,6 +59,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Autowired
     DataBaseApi dataBaseApi;
+
 
     private final HashSet<String> menuButtons;
 
