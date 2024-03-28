@@ -87,6 +87,12 @@ public class DataBaseApi {
     }
 
     @CrossOrigin
+    @GetMapping("api/getEvent/{id}")
+    public Optional<EventEntity> getEvent(@PathVariable Long id) {
+        return eventRepository.findById(id);
+    }
+
+    @CrossOrigin
     @PostMapping("api/postEvent")
     public String saveEvent(@RequestBody EventEntity eventEntity) {
         eventEntity = eventRepository.saveAndFlush(eventEntity);

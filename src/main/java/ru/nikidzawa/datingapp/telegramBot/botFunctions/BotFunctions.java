@@ -374,7 +374,7 @@ public class BotFunctions {
             return userName + ", " + age + ", " + location + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
         });
 
-        profileInfoFuture.thenAccept(profileInfo -> loadUserAvatars(userId, userEntity, profileInfo, userAvatarsFuture));
+        profileInfoFuture.thenAccept(profileInfo -> loadUserAvatars(userId, userEntity, profileInfo, userAvatarsFuture)).join();
     }
 
     @SneakyThrows
@@ -431,7 +431,7 @@ public class BotFunctions {
                     String hobby = parseHobbyFuture.join();
                     return userName + ", " + age + ", " + location + distance + hobby + (aboutMe == null ? "" : "\n" + aboutMe);
                 });
-        profileInfoFuture.thenAccept(profileInfo -> loadUserAvatars(userId, anotherUser, profileInfo, userAvatarsFuture));
+        profileInfoFuture.thenAccept(profileInfo -> loadUserAvatars(userId, anotherUser, profileInfo, userAvatarsFuture)).join();
     }
 
     private String getDistance(UserEntity anotherUser, UserEntity me) {

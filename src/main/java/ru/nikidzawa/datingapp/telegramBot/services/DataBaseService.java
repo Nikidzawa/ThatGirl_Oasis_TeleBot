@@ -87,8 +87,12 @@ public class DataBaseService {
         likeRepository.deleteById(likeId);
     }
 
-    public List<UserEntity> getProfiles (UserEntity myProfile) {
-        return userRepository.findAllOrderByDistance(myProfile.getId(), myProfile.getLongitude(), myProfile.getLatitude());
+    public List<UserEntity> getRecomendation(UserEntity myProfile, List<Long> excludedUserIds) {
+        int age = myProfile.getAge();
+        return userRepository.findAllOrderByDistance(myProfile.getId(), excludedUserIds, age-2, age+2, myProfile.getLongitude(), myProfile.getLatitude());
+    }
+    public List<UserEntity> getAllUsers() {
+        return userRepository.findAll();
     }
 
     public void saveError (ErrorEntity errorEntity) {

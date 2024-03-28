@@ -21,10 +21,7 @@ import ru.nikidzawa.datingapp.telegramBot.services.api.GeocodingApi;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.Geocode;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.JsonParser;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Component
 public class StateMachine {
@@ -107,7 +104,7 @@ public class StateMachine {
         locationStates.put(StateEnum.ASK_CITY, new AskCityGeo());
         locationStates.put(StateEnum.EDIT_CITY, new EditCityGeo());
 
-        audioStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageAudio());
+        audioStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageVoice());
         videoStates.put(StateEnum.ASK_AVATAR, new AddAvatarVideo());
         videoStates.put(StateEnum.EDIT_AVATAR, new AddAvatarVideo());
         videoStates.put(StateEnum.SEND_LIKE_AND_MESSAGE, new SendLikeAndMessageVideo());
@@ -543,7 +540,7 @@ public class StateMachine {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
                 botFunctions.sendMessageAndKeyboard(userId, "\uD83D\uDD0D✨", botFunctions.searchButtons());
-                startSearch(userId, userEntity);
+                showNextUser(userId, userEntity);
             }
         }
 
@@ -593,7 +590,7 @@ public class StateMachine {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
                 botFunctions.sendMessageAndKeyboard(userId, "\uD83D\uDD0D✨", botFunctions.searchButtons());
-                startSearch(userId, userEntity);
+                showNextUser(userId, userEntity);
             }
         }
 
@@ -920,71 +917,93 @@ public class StateMachine {
     private class SendLikeAndMessagePhoto implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-            botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
-            List<UserEntity> profiles = getRecommendation(userEntity, userId);
-            UserEntity anotherUser = profiles.getFirst();
-            String fileId = botFunctions.loadPhoto(message.getPhoto());
-            new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.PHOTO, fileId)).start();
-            cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-            startSearch(userId, userEntity);
+            Long userAssessmentId = cacheService.getUserAssessmentId(userId);
+            if (userAssessmentId == null) {
+                botFunctions.sendMessageNotRemoveKeyboard(userId, "Время ожидания оценки истекло");
+            } else {
+                botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
+                removeRecommendUser(userId, userAssessmentId);
+                new Thread(() -> {
+                    String fileId = botFunctions.loadPhoto(message.getPhoto());
+                    sendLike(userEntity, userAssessmentId, false, LikeContentType.PHOTO, fileId);
+                }).start();
+            }
+            showNextUser(userId, userEntity);
         }
     }
 
-    private class SendLikeAndMessageAudio implements State {
+    private class SendLikeAndMessageVoice implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-            botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
-            List<UserEntity> profiles = getRecommendation(userEntity, userId);
-            UserEntity anotherUser = profiles.getFirst();
-            String fileId = message.getVoice().getFileId();
-            new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.VOICE, fileId)).start();
-            cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-            startSearch(userId, userEntity);
+            Long userAssessmentId = cacheService.getUserAssessmentId(userId);
+            if (userAssessmentId == null) {
+                botFunctions.sendMessageNotRemoveKeyboard(userId, "Время ожидания оценки истекло");
+            } else {
+                botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
+                removeRecommendUser(userId, userAssessmentId);
+                new Thread(() -> {
+                    String fileId = message.getVoice().getFileId();
+                    sendLike(userEntity, userAssessmentId, false, LikeContentType.VOICE, fileId);
+                }).start();
+            }
+            showNextUser(userId, userEntity);
         }
     }
 
     private class SendLikeAndMessageVideo implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-            botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
-            List<UserEntity> profiles = getRecommendation(userEntity, userId);
-            UserEntity anotherUser = profiles.getFirst();
-            String fileId = message.getVideo().getFileId();
-            new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.VIDEO, fileId)).start();
-            cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-            startSearch(userId, userEntity);
+            Long userAssessmentId = cacheService.getUserAssessmentId(userId);
+            if (userAssessmentId == null) {
+                botFunctions.sendMessageNotRemoveKeyboard(userId, "Время ожидания оценки истекло");
+            } else {
+                botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
+                removeRecommendUser(userId, userAssessmentId);
+                new Thread(() -> {
+                    String fileId = message.getVideo().getFileId();
+                    sendLike(userEntity, userAssessmentId, false, LikeContentType.VIDEO, fileId);
+                }).start();
+            }
+            showNextUser(userId, userEntity);
         }
     }
 
     private class SendLikeAndMessageText implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            Long userAssessmentId = cacheService.getUserAssessmentId(userId);
             String messageText = message.getText();
-            List<UserEntity> profiles = getRecommendation(userEntity, userId);
-            UserEntity anotherUser = profiles.getFirst();
             if (!messageText.equals("Отменить")) {
+                if (userAssessmentId == null) {
+                    botFunctions.sendMessageNotRemoveKeyboard(userId, "Время ожидания оценки истекло");
+                } else {
+
+                }
                 botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
-                cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-                startSearch(userId, userEntity);
-                new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.TEXT, messageText)).start();
+                removeRecommendUser(userId, userAssessmentId);
+                new Thread(() -> sendLike(userEntity, userAssessmentId, false, LikeContentType.TEXT, messageText)).start();
             } else {
                 botFunctions.sendMessageAndKeyboard(userId, "Отмена отправки", botFunctions.searchButtons());
-                botFunctions.sendOtherProfile(userId, anotherUser, userEntity);
             }
-            cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+            showNextUser(userId, userEntity);
         }
     }
 
     private class SendLikeAndMessageVideoNote implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-            botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
-            List<UserEntity> profiles = getRecommendation(userEntity, userId);
-            UserEntity anotherUser = profiles.getFirst();
-            String fileId = message.getVideoNote().getFileId();
-            new Thread(() -> sendLike(userEntity, anotherUser, false, LikeContentType.VIDEO_NOTE, fileId)).start();
-            cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-            startSearch(userId, userEntity);
+            Long userAssessmentId = cacheService.getUserAssessmentId(userId);
+            if (userAssessmentId == null) {
+                botFunctions.sendMessageNotRemoveKeyboard(userId, "Время ожидания оценки истекло");
+            } else {
+                botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
+                removeRecommendUser(userId, userAssessmentId);
+                new Thread(() -> {
+                    String fileId = message.getVideoNote().getFileId();
+                    sendLike(userEntity, userAssessmentId, false, LikeContentType.VIDEO_NOTE, fileId);
+                }).start();
+            }
+            showNextUser(userId, userEntity);
         }
     }
 
@@ -1004,7 +1023,7 @@ public class StateMachine {
                 String userName = botFunctions.getChatMember(likedUser.getId()).getUser().getUserName();
                 botFunctions.sendMessageAndComplainButton(userId, likedUser.getId(), "Желаю вам хорошо провести время :)\nhttps://t.me/" + userName);
                 likeChecker(userId, userEntity);
-                new Thread(() -> sendLike(userEntity, likedUser, true, null, null)).start();
+                new Thread(() -> sendLike(userEntity, likedUser.getId(), true, null, null)).start();
             }
         }
 
@@ -1048,7 +1067,7 @@ public class StateMachine {
             String messageText = message.getText();
             if (messageText.equals("Продолжить смотреть анкеты")) {
                 botFunctions.sendMessageAndKeyboard(userId, "\uD83D\uDD0D✨", botFunctions.searchButtons());
-                startSearch(userId, userEntity);
+                showNextUser(userId, userEntity);
             }
             else if (messageText.equals("Вернуться в меню")) {
                 goToMenu(userId, userEntity);
@@ -1071,14 +1090,15 @@ public class StateMachine {
         private class SendLike implements State {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-                List<UserEntity> profiles = getRecommendation(userEntity, userId);
-                UserEntity anotherUser = profiles.getFirst();
-
-                botFunctions.sendMessageNotRemoveKeyboard(userId, "Лайк отправлен, ждём ответа");
-                new Thread(() -> sendLike(userEntity, anotherUser, false, null, null)).start();
-                cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-
-                startSearch(userId, userEntity);
+                Long userAssessmentId = cacheService.getUserAssessmentId(userId);
+                if (userAssessmentId == null) {
+                    botFunctions.sendMessageNotRemoveKeyboard(userId, "Время ожидания оценки истекло");
+                } else {
+                    botFunctions.sendMessageNotRemoveKeyboard(userId, "Лайк отправлен, ждём ответа");
+                    removeRecommendUser(userId, userAssessmentId);
+                    new Thread(() -> sendLike(userEntity, userAssessmentId, false, null, null)).start();
+                }
+                showNextUser(userId, userEntity);
             }
         }
         private class SendLikeAndMessage implements State {
@@ -1092,12 +1112,11 @@ public class StateMachine {
         private class SendDislike implements State {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
-                List<UserEntity> profiles = getRecommendation(userEntity, userId);
-                UserEntity anotherUser = profiles.getFirst();
-
-                cacheService.evictCachedProfiles(userId, anotherUser, profiles);
-
-                startSearch(userId, userEntity);
+                Long userAssessmentId = cacheService.getUserAssessmentId(userId);
+                if (userAssessmentId != null) {
+                    removeRecommendUser(userId, userAssessmentId);
+                }
+                showNextUser(userId, userEntity);
             }
         }
 
@@ -1105,6 +1124,7 @@ public class StateMachine {
             @Override
             public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
                 goToMenu(userId, userEntity);
+                cacheService.evictUserAssessmentId(userId);
             }
         }
 
@@ -1233,12 +1253,6 @@ public class StateMachine {
         }
     }
 
-    public void startSearch (Long userId, UserEntity userEntity) {
-        UserEntity anotherUser = getRecommendation(userEntity, userId).getFirst();
-        botFunctions.sendOtherProfile(userId, anotherUser, userEntity);
-        cacheService.setState(userId, StateEnum.FIND_PEOPLES);
-    }
-
     public void goToMenu (Long userId, UserEntity userEntity) {
         int likedMeCount = userEntity.getLikesGiven().size();
         if (likedMeCount == 0) {
@@ -1280,13 +1294,34 @@ public class StateMachine {
         goToProfile(userId, userEntity);
     }
 
-    public List<UserEntity> getRecommendation(UserEntity myProfile, Long userId) {
-        List<UserEntity> profiles = cacheService.getCachedProfiles(userId);
-        if (profiles == null || profiles.isEmpty()) {
-            profiles = dataBaseService.getProfiles(myProfile);
-            cacheService.putCachedProfiles(userId, profiles);
+    public void showNextUser(Long userId, UserEntity userEntity) {
+        UserEntity anotherUser = getRecommendation(userEntity, userId);
+        botFunctions.sendOtherProfile(userId, anotherUser, userEntity);
+        cacheService.putUserAssessmentId(userId, anotherUser.getId());
+        cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+    }
+
+    public void removeRecommendUser (Long myId, Long recommendUserId) {
+        List<Long> excludedUserIds = cacheService.getExcludedUserIds(myId);
+        excludedUserIds.add(recommendUserId);
+        cacheService.putExcludedUserIds(myId, excludedUserIds);
+    }
+
+    public UserEntity getRecommendation(UserEntity myProfile, Long userId) {
+        List<Long> excludedUserIds = cacheService.getExcludedUserIds(userId);
+        List<UserEntity> recomendation = dataBaseService.getRecomendation(myProfile, excludedUserIds);
+        if (recomendation.isEmpty()) {
+            cacheService.putExcludedUserIds(userId, new ArrayList<>());
+            List<UserEntity> newRecommendations = dataBaseService.getRecomendation(myProfile, new ArrayList<>());
+            if (newRecommendations.isEmpty()) {
+                //todo
+                return dataBaseService.getAllUsers().getFirst();
+            } else {
+                return newRecommendations.getFirst();
+            }
+        } else {
+            return recomendation.getFirst();
         }
-        return profiles;
     }
 
     public void showWhoLikedMe (Long userId, UserEntity myProfile, LikeEntity like) {
@@ -1299,34 +1334,35 @@ public class StateMachine {
         cacheService.setState(userId, StateEnum.SHOW_PROFILES_WHO_LIKED_ME);
     }
 
-    public void sendLike(UserEntity myProfile, UserEntity anotherUser, boolean isReciprocity, LikeContentType likeContentType, String content) {
+    public void sendLike(UserEntity myProfile, Long anotherUserId, boolean isReciprocity, LikeContentType likeContentType, String content) {
         if (!myProfile.isBanned()) {
-            Long anotherUserId = anotherUser.getId();
-            UserEntity realAnotherUser = dataBaseService.getUserById(anotherUserId).get();
-            List<LikeEntity> likedUsers = realAnotherUser.getLikesGiven();
-            if (likedUsers.stream().noneMatch(like -> like.getLikerUserId() == myProfile.getId())) {
-                Cache.ValueWrapper optionalState = cacheService.getCurrentState(anotherUserId);
-                if (optionalState == null || optionalState.get() == StateEnum.MENU) {
-                    if (likedUsers.isEmpty()) {
-                        botFunctions.sendMessageAndKeyboard(anotherUserId, "твоя анкета кому-то понравилась", botFunctions.showWhoLikedMeButtons());
-                    } else {
-                        botFunctions.sendMessageAndKeyboard(anotherUserId, "твоя анкета понравилась " + (likedUsers.size() + 1) + " людям", botFunctions.showWhoLikedMeButtons());
+            UserEntity likedUser = dataBaseService.getUserById(anotherUserId).get();
+            if (likedUser.isActive() && !likedUser.isBanned()) {
+                List<LikeEntity> likedUsers = likedUser.getLikesGiven();
+                if (likedUsers.stream().noneMatch(like -> like.getLikerUserId() == myProfile.getId())) {
+                    Cache.ValueWrapper optionalState = cacheService.getCurrentState(anotherUserId);
+                    if (optionalState == null || optionalState.get() == StateEnum.MENU) {
+                        if (likedUsers.isEmpty()) {
+                            botFunctions.sendMessageAndKeyboard(anotherUserId, "твоя анкета кому-то понравилась", botFunctions.showWhoLikedMeButtons());
+                        } else {
+                            botFunctions.sendMessageAndKeyboard(anotherUserId, "твоя анкета понравилась " + (likedUsers.size() + 1) + " людям", botFunctions.showWhoLikedMeButtons());
+                        }
+                        cacheService.setState(anotherUserId, StateEnum.SHOW_WHO_LIKED_ME);
+                    } else if (optionalState.get() == StateEnum.FIND_PEOPLES) {
+                        botFunctions.sendMessageNotRemoveKeyboard(anotherUserId, "Заканчивай с просмотром анкет, ты кому-то понравилась!");
                     }
-                    cacheService.setState(anotherUserId, StateEnum.SHOW_WHO_LIKED_ME);
-                } else if (optionalState.get() == StateEnum.FIND_PEOPLES) {
-                    botFunctions.sendMessageNotRemoveKeyboard(anotherUserId, "Заканчивай с просмотром анкет, ты кому-то понравилась!");
+                    LikeEntity like = dataBaseService.saveLike(
+                            LikeEntity.builder()
+                                    .isReciprocity(isReciprocity)
+                                    .likeContentType(likeContentType)
+                                    .content(content)
+                                    .likedUser(likedUser)
+                                    .likerUserId(myProfile.getId())
+                                    .build()
+                    );
+                    likedUser.getLikesGiven().add(like);
+                    dataBaseService.saveUser(likedUser);
                 }
-                LikeEntity like = dataBaseService.saveLike(
-                        LikeEntity.builder()
-                                .isReciprocity(isReciprocity)
-                                .likeContentType(likeContentType)
-                                .content(content)
-                                .likedUser(realAnotherUser)
-                                .likerUserId(myProfile.getId())
-                                .build()
-                );
-                realAnotherUser.getLikesGiven().add(like);
-                dataBaseService.saveUser(realAnotherUser);
             }
         }
     }

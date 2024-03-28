@@ -13,7 +13,6 @@ import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateEnum;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -72,24 +71,44 @@ public class CacheService {
     }
 
     @SneakyThrows
-    public List<UserEntity> getCachedProfiles(Long userId) {
-        String cachedProfilesJson = redisTemplate.opsForValue().get("recommendations_" + userId);
-        if (cachedProfilesJson != null) {
-            UserEntity[] userEntities = objectMapper.readValue(cachedProfilesJson, UserEntity[].class);
-            return new ArrayList<>(Arrays.asList(userEntities));
+    public Long getUserAssessmentId(Long myId) {
+        String excludedUserIdsJson = redisTemplate.opsForValue().get("userAssessmentId_" + myId);
+        if (excludedUserIdsJson != null) {
+            return objectMapper.readValue(excludedUserIdsJson, Long.class);
         }
         return null;
     }
-
     @SneakyThrows
-    public void putCachedProfiles(Long userId, List<UserEntity> profiles) {
-        String cachedAvatarsJson = objectMapper.writeValueAsString(profiles);
-        redisTemplate.opsForValue().set("recommendations_" + userId, cachedAvatarsJson);
-        redisTemplate.expire("recommendations_" + userId, 3, TimeUnit.HOURS);
+    public void putUserAssessmentId(Long myId, Long userAssessmentId) {
+        String excludedUserIdsJson = objectMapper.writeValueAsString(userAssessmentId);
+        redisTemplate.opsForValue().set("userAssessmentId_" + myId, excludedUserIdsJson);
+        redisTemplate.expire("userAssessmentId_" + myId, 3, TimeUnit.HOURS);
     }
 
-    public void evictCachedProfiles(Long userId, UserEntity entityToRemove, List<UserEntity> cachedProfiles) {
-        cachedProfiles.removeIf(userEntity -> Objects.equals(userEntity.getId(), entityToRemove.getId()));
-        putCachedProfiles(userId, cachedProfiles);
+    public void evictUserAssessmentId(Long myId) {
+        redisTemplate.delete("userAssessmentId_" + myId);
+    }
+
+
+    @SneakyThrows
+    public List<Long> getExcludedUserIds(Long myId) {
+        String excludedUserIdsJson = redisTemplate.opsForValue().get("excludedUserIds_" + myId);
+        if (excludedUserIdsJson != null) {
+            Long[] excludedUserIds = objectMapper.readValue(excludedUserIdsJson, Long[].class);
+            return new ArrayList<>(Arrays.asList(excludedUserIds));
+        }
+        return new ArrayList<>();
+    }
+
+    @SneakyThrows
+    public void putExcludedUserIds(Long myId, List<Long> excludedUserIds) {
+        String excludedUserIdsJson = objectMapper.writeValueAsString(excludedUserIds);
+        boolean cacheExists = Boolean.TRUE.equals(redisTemplate.hasKey("excludedUserIds_" + myId));
+        if (cacheExists) {
+            redisTemplate.opsForValue().set("excludedUserIds_" + myId, excludedUserIdsJson);
+        } else {
+            redisTemplate.opsForValue().set("excludedUserIds_" + myId, excludedUserIdsJson);
+            redisTemplate.expire("excludedUserIds_" + myId, 24, TimeUnit.HOURS);
+        }
     }
 }
