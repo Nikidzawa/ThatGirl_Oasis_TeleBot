@@ -1,6 +1,7 @@
 package ru.nikidzawa.datingapp;
 
 import lombok.Setter;
+import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
@@ -10,14 +11,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
+import ru.nikidzawa.datingapp.store.entities.event.EventImage;
 import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccount;
+import ru.nikidzawa.datingapp.store.repositories.EventImageRepository;
 import ru.nikidzawa.datingapp.store.repositories.EventRepository;
 import ru.nikidzawa.datingapp.store.repositories.UserRepository;
 import ru.nikidzawa.datingapp.store.repositories.UserSiteAccountRepository;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
+import ru.nikidzawa.datingapp.telegramBot.services.parsers.JsonParser;
 
 import java.util.List;
 import java.util.Optional;
+
+import static org.aspectj.weaver.tools.cache.SimpleCacheFactory.path;
 
 @RestController
 public class DataBaseApi {
@@ -29,6 +35,12 @@ public class DataBaseApi {
 
     @Autowired
     UserSiteAccountRepository userSiteAccountRepository;
+
+    @Autowired
+    EventImageRepository eventImageRepository;
+
+    @Autowired
+    JsonParser jsonParser;
 
     @Setter
     BotFunctions botFunctions;
@@ -48,9 +60,9 @@ public class DataBaseApi {
 
     @CrossOrigin
     @GetMapping("api/getEvent/{id}")
-    @Cacheable(cacheNames = "event", key = "#id")
-    public Optional<EventEntity> getEventById (@PathVariable Long id) {
-        return eventRepository.findById(id);
+//    @Cacheable(cacheNames = "event", key = "#id")
+    public EventEntity getEventById (@PathVariable Long id) {
+        return eventRepository.findById(id).get();
     }
 
     @CrossOrigin
@@ -86,36 +98,124 @@ public class DataBaseApi {
         }
     }
 
-    @CrossOrigin
-    @GetMapping("api/getEvent/{id}")
-    public Optional<EventEntity> getEvent(@PathVariable Long id) {
-        return eventRepository.findById(id);
-    }
-
+    @SneakyThrows
     @CrossOrigin
     @PostMapping("api/postEvent")
-    public String saveEvent(@RequestBody EventEntity eventEntity) {
+    public ResponseEntity<?> saveEvent(@RequestBody EventEntity eventEntity) {
+        List<EventImage> eventImages = eventEntity.getEventImages();
+        eventEntity.setEventImages(null);
+        EventImage mainImage = eventImageRepository.saveAndFlush(eventEntity.getMainImage());
+        eventEntity.setMainImage(null);
         eventEntity = eventRepository.saveAndFlush(eventEntity);
-        ResponseEntity<String> response = uploadImage(eventEntity.getId(), eventEntity.getImage());
-        eventEntity.setImage(String.valueOf(eventEntity.getId()));
+        Long id = eventEntity.getId();
+        String basePath = "/" + id + "/";
+        String mainImagePath = basePath + "main";
+
+        ResponseEntity<?> createFolderResponse = createFolder(id);
+        if (!createFolderResponse.getStatusCode().is2xxSuccessful()) {
+            return ResponseEntity.status(createFolderResponse.getStatusCode()).body(createFolderResponse.getBody());
+        }
+
+        try {
+            for (int i = 0; i < eventImages.size(); i++) {
+                String imagePath = basePath + "image(" + i + ")";
+                EventImage currentEventImage = eventImages.get(i);
+                uploadImage(imagePath, currentEventImage.getHref());
+            }
+            uploadImage(mainImagePath, mainImage.getHref());
+        } catch (Exception ex) {
+            deleteFolder(id);
+            return ResponseEntity.notFound().build();
+        }
+
+        Thread.sleep(5000);
+
+        try {
+            for (int i = 0; i < eventImages.size(); i++) {
+                String imagePath = basePath + "image(" + i + ")";
+                EventImage currentEventImage = eventImages.get(i);
+                ResponseEntity<?> responseEntity = getDownloadLink(imagePath);
+                String href = jsonParser.getHref((String) responseEntity.getBody());
+                currentEventImage.setHref(href);
+            }
+            ResponseEntity<?> responseEntity = getDownloadLink(mainImagePath);
+            String href = jsonParser.getHref((String) responseEntity.getBody());
+            mainImage.setHref(href);
+        } catch (Exception ex) {
+            deleteFolder(id);
+            return ResponseEntity.notFound().build();
+        }
+
+        eventImages = eventImageRepository.saveAllAndFlush(eventImages);
+        mainImage = eventImageRepository.saveAndFlush(mainImage);
+
+        eventEntity.setEventImages(eventImages);
+        eventEntity.setMainImage(mainImage);
+
         eventRepository.saveAndFlush(eventEntity);
-        return response.getStatusCode().toString();
+        return ResponseEntity.ok().build();
+    }
+    @CrossOrigin
+    @GetMapping("api/event/{eventId}/images")
+    public List<EventImage> saveEvent(@PathVariable Long eventId) {
+        return eventRepository.findEventImagesByEventId(eventId);
     }
 
-    private ResponseEntity<String> uploadImage(Long fileId, String url) {
-        String postImageUrl = "https://cloud-api.yandex.net/v1/disk/resources/upload?path=" + fileId + "&url=" + url;
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Content-Type", "application/json");
-        headers.set("Authorization", "OAuth y0_AgAAAAA6DSoUAADLWwAAAAD-7B2bAAAmShKyx9pJQ7i_DbM850VcHQn9NA");
-        HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
+    private ResponseEntity<String> uploadImage(String path, String url) {
+        String postImageUrl = "https://cloud-api.yandex.net/v1/disk/resources/upload?path=" + path + "&url=" + url;
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, getHeader());
 
         RestTemplate restTemplate = new RestTemplate();
-
         return restTemplate.exchange(
                 postImageUrl,
                 HttpMethod.POST,
                 requestEntity,
                 String.class
         );
+    }
+    private ResponseEntity<?> createFolder (Long path) {
+        String url = "https://cloud-api.yandex.net/v1/disk/resources?path=" + path;
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, getHeader());
+
+        RestTemplate restTemplate = new RestTemplate();
+        return restTemplate.exchange(
+                url,
+                HttpMethod.PUT,
+                requestEntity,
+                String.class
+        );
+    }
+    private ResponseEntity<?> getDownloadLink (String path) {
+        String url = "https://cloud-api.yandex.net/v1/disk/resources/download?path=" + path;
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, getHeader());
+
+        RestTemplate restTemplate = new RestTemplate();
+        return restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                String.class
+        );
+    }
+
+
+    private ResponseEntity<?> deleteFolder (Long path) {
+        String url = "https://cloud-api.yandex.net/v1/disk/resources?path=" + path;
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, getHeader());
+
+        RestTemplate restTemplate = new RestTemplate();
+        return restTemplate.exchange(
+                url,
+                HttpMethod.DELETE,
+                requestEntity,
+                String.class
+        );
+    }
+
+    private HttpHeaders getHeader () {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/json");
+        headers.set("Authorization", "OAuth y0_AgAAAAA6DSoUAADLWwAAAAD-7B2bAAAmShKyx9pJQ7i_DbM850VcHQn9NA");
+        return headers;
     }
 }

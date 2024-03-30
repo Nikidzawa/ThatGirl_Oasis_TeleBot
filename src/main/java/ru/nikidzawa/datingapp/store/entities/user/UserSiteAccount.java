@@ -25,6 +25,8 @@ public class UserSiteAccount implements Serializable {
     @OneToOne
     UserEntity userEntity;
 
+    String location;
+
     double longitude;
 
     double latitude;

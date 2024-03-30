@@ -506,6 +506,7 @@ public class StateMachine {
                     UserSiteAccount userSiteAccount = dataBaseService.saveUserSiteAccount(
                             UserSiteAccount.builder()
                                     .id(userId)
+                                    .location(userEntity.getLocation())
                                     .latitude(cachedUser.getLatitude())
                                     .longitude(cachedUser.getLongitude())
                                     .userEntity(cachedUser)
