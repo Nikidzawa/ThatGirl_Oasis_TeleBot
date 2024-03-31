@@ -40,11 +40,5 @@ public class JsonParser {
             return geocode;
         }
     }
-    @SneakyThrows
-    public String getHref (String json) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode jsonNode = objectMapper.readTree(json);
-        return jsonNode.get("href").asText();
-    }
 }
 

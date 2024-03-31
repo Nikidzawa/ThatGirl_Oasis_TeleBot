@@ -3,7 +3,6 @@ package ru.nikidzawa.datingapp.store.entities.event;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import ru.nikidzawa.datingapp.store.entities.user.UserAvatar;
 
 import java.io.Serializable;
 import java.util.List;
@@ -46,6 +45,9 @@ public class EventEntity implements Serializable {
 
     @OneToOne(fetch = FetchType.EAGER)
     EventImage mainImage;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    EventType eventType;
 
     @OneToMany(fetch = FetchType.LAZY)
     List<EventImage> eventImages;

@@ -1,7 +1,6 @@
 package ru.nikidzawa.datingapp.telegramBot.stateMachines.commands;
 
 import lombok.Setter;
-import org.antlr.v4.runtime.misc.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;

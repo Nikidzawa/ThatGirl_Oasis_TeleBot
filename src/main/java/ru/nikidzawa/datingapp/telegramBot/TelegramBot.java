@@ -9,7 +9,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
-import ru.nikidzawa.datingapp.DataBaseApi;
+import ru.nikidzawa.datingapp.API.DataBaseApi;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 import ru.nikidzawa.datingapp.telegramBot.cache.CacheService;

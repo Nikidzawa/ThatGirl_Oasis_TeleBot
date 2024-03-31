@@ -21,7 +21,10 @@ import ru.nikidzawa.datingapp.telegramBot.services.api.GeocodingApi;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.Geocode;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.JsonParser;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
 
 @Component
 public class StateMachine {
