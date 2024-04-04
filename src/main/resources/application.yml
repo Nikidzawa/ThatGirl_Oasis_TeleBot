@@ -1,9 +1,11 @@
+server:
+  port: 8080
 spring:
   profiles:
     active: default
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/Leonardo_DB
+    url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver

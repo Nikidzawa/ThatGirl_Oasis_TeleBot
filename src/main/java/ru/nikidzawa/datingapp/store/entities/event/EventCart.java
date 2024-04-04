@@ -1,6 +1,9 @@
 package ru.nikidzawa.datingapp.store.entities.event;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -13,11 +16,12 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class EventImage implements Serializable {
+public class EventCart implements Serializable {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @Column(length = 10000)
-    String href;
+    int count;
+
+    @OneToOne
+    private EventEntity event;
 }

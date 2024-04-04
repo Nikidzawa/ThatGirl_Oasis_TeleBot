@@ -6,14 +6,12 @@ import lombok.SneakyThrows;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.nikidzawa.datingapp.store.entities.event.EventCart;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.event.EventImage;
 import ru.nikidzawa.datingapp.store.entities.event.EventType;
 import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccount;
-import ru.nikidzawa.datingapp.store.repositories.EventImageRepository;
-import ru.nikidzawa.datingapp.store.repositories.EventRepository;
-import ru.nikidzawa.datingapp.store.repositories.EventTypeRepository;
-import ru.nikidzawa.datingapp.store.repositories.UserSiteAccountRepository;
+import ru.nikidzawa.datingapp.store.repositories.*;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 
 import java.util.List;
@@ -33,6 +31,8 @@ public class DataBaseApi {
     private final EventTypeRepository eventTypeRepository;
 
     private final ExternalApi externalApi;
+    
+    private final EventCartRepository eventCartRepository;
 
     @Setter
     BotFunctions botFunctions;
@@ -102,6 +102,54 @@ public class DataBaseApi {
     @GetMapping("api/getEventsByType/{typeName}")
     public List<EventEntity> getEventsByType (@PathVariable String typeName) {
         return eventRepository.findByEventTypeName(typeName);
+    }
+
+    @PostMapping("api/addEventToCart/{userId}/{eventId}")
+    public EventCart addEventToCart (@PathVariable Long userId, @PathVariable Long eventId) {
+        Optional<EventCart> eventCartOptional = eventCartRepository.findById(eventId);
+        if (eventCartOptional.isPresent()) {
+            EventCart eventCart = eventCartOptional.get();
+            eventCart.setCount(eventCart.getCount() + 1);
+            return eventCartRepository.saveAndFlush(eventCart);
+        } else {
+            EventCart eventCart = EventCart.builder()
+                    .id(eventId)
+                    .count(1)
+                    .event(eventRepository.findById(eventId).get())
+                    .build();
+            eventCartRepository.saveAndFlush(eventCart);
+            UserSiteAccount userSiteAccount = userSiteAccountRepository.findById(userId).get();
+            userSiteAccount.getEventAddedToCart().add(eventCart);
+            userSiteAccountRepository.saveAndFlush(userSiteAccount);
+            return eventCart;
+        }
+    }
+
+    @PostMapping("api/removeEventFromCart/{userId}/{eventId}")
+    public EventCart removeEventFromCart (@PathVariable Long userId, @PathVariable Long eventId) {
+        Optional<EventCart> eventCartOptional = eventCartRepository.findById(eventId);
+        if (eventCartOptional.isPresent()) {
+            EventCart eventCart = eventCartOptional.get();
+            int count = eventCart.getCount() - 1;
+            if (count == 0) {
+                UserSiteAccount userSiteAccount = userSiteAccountRepository.findById(userId).get();
+                userSiteAccount.getEventAddedToCart().remove(eventCart);
+                userSiteAccountRepository.saveAndFlush(userSiteAccount);
+                eventCartRepository.delete(eventCart);
+                return eventCart;
+            } else {
+                eventCart.setCount(count);
+                return eventCartRepository.saveAndFlush(eventCart);
+            }
+        }
+        return null;
+    }
+
+
+    @GetMapping("api/getUserCartEvents/{userId}")
+    public List<EventCart> getUserCartEvents (@PathVariable Long userId) {
+        UserSiteAccount userSiteAccount = userSiteAccountRepository.findById(userId).get();
+        return userSiteAccount.getEventAddedToCart();
     }
 
     @SneakyThrows

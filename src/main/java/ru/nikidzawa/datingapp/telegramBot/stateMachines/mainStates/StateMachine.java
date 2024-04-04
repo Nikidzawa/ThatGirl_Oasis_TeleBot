@@ -267,6 +267,7 @@ public class StateMachine {
                 cachedUser.setLongitude(longitude);
                 cachedUser.setLatitude(latitude);
                 cachedUser.setLocation(jsonParser.getName(geocodingApi.getCityName(latitude, longitude)));
+                cachedUser.setShowGeo(true);
 
                 cacheService.putCachedUser(userId, cachedUser);
             }).start();
@@ -509,7 +510,7 @@ public class StateMachine {
                     UserSiteAccount userSiteAccount = dataBaseService.saveUserSiteAccount(
                             UserSiteAccount.builder()
                                     .id(userId)
-                                    .location(userEntity.getLocation())
+                                    .location(cachedUser.getLocation())
                                     .latitude(cachedUser.getLatitude())
                                     .longitude(cachedUser.getLongitude())
                                     .userEntity(cachedUser)

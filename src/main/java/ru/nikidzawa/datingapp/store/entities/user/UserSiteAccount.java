@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import ru.nikidzawa.datingapp.store.entities.event.EventCart;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 
 import java.io.Serializable;
@@ -34,4 +35,8 @@ public class UserSiteAccount implements Serializable {
     @JsonIgnore
     @OneToMany(fetch = FetchType.EAGER)
     List<EventEntity> events = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(fetch = FetchType.EAGER)
+    List<EventCart> eventAddedToCart = new ArrayList<>();
 }
