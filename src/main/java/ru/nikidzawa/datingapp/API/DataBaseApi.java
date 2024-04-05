@@ -6,13 +6,13 @@ import lombok.SneakyThrows;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.nikidzawa.datingapp.store.entities.event.EventCart;
-import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
-import ru.nikidzawa.datingapp.store.entities.event.EventImage;
-import ru.nikidzawa.datingapp.store.entities.event.EventType;
-import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccount;
+import ru.nikidzawa.datingapp.store.entities.event.*;
+import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.store.repositories.*;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
+import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
+import ru.nikidzawa.datingapp.telegramBot.services.parsers.Geocode;
+import ru.nikidzawa.datingapp.telegramBot.services.parsers.JsonParser;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,28 +24,36 @@ public class DataBaseApi {
 
     private final EventRepository eventRepository;
 
-    private final UserSiteAccountRepository userSiteAccountRepository;
-
     private final EventImageRepository eventImageRepository;
 
     private final EventTypeRepository eventTypeRepository;
 
     private final ExternalApi externalApi;
-    
-    private final EventCartRepository eventCartRepository;
+
+    private final EventCityRepository eventCityRepository;
+
+    private final JsonParser jsonParser;
+
+    private final UserRepository userRepository;
+
+    private final DataBaseService dataBaseService;
 
     @Setter
     BotFunctions botFunctions;
 
+
+    @GetMapping("api/getUserById/{id}")
+    public ResponseEntity<?> getUser (@PathVariable Long id) {
+        Optional<UserEntity> userEntity = dataBaseService.getUserById(id);
+        if (userEntity.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(userEntity.get());
+    }
+
     @GetMapping("api/getUserStatus/{id}")
     public String getUserStatus (@PathVariable Long id) {
         return botFunctions.getChatMember(id).getStatus();
-    }
-
-    @GetMapping("api/getUserSite/{id}")
-    @Cacheable(cacheNames = "userSite", key = "#id")
-    public Optional<UserSiteAccount> getUserSite (@PathVariable Long id) {
-        return userSiteAccountRepository.findById(id);
     }
 
     @GetMapping("api/getEvent/{id}")
@@ -53,34 +61,35 @@ public class DataBaseApi {
         return eventRepository.findById(id).get();
     }
 
-    @GetMapping("api/getAllEvents")
-    public List<EventEntity> getAllEvents () {
-        return eventRepository.findAll();
+    @PostMapping("api/postEventCity")
+    public EventCity postEventCity (@RequestBody EventCity eventCity) {
+        Geocode geocode = jsonParser.parseGeocode(externalApi.getCoordinates(eventCity.getName()));
+        eventCity.setLatitude(geocode.getLat());
+        eventCity.setLongitude(geocode.getLon());
+        return eventCityRepository.saveAndFlush(eventCity);
     }
 
-    @GetMapping("api/getUserEvents/{userId}")
-    public List<EventEntity> getUserEvents (@PathVariable Long userId) {
-        return userSiteAccountRepository.findById(userId).get().getEvents();
+    @GetMapping("api/getEventsByCityId/{cityId}")
+    public List<EventEntity> getEventsByCityId (@PathVariable Long cityId) {
+        EventCity eventCity = eventCityRepository.findById(cityId).get();
+        return eventCity.getEventEntities();
     }
 
-    @PostMapping("api/subscribeEvent/{userId}/{eventId}")
-    public ResponseEntity<?> subscribeToEvent(@PathVariable Long userId, @PathVariable Long eventId) {
-        Optional<UserSiteAccount> optionalUserSiteAccount = userSiteAccountRepository.findById(userId);
-        Optional<EventEntity> optionalEvent = eventRepository.findById(eventId);
-        if (optionalUserSiteAccount.isPresent() && optionalEvent.isPresent()) {
-            UserSiteAccount userSiteAccount = optionalUserSiteAccount.get();
-            EventEntity event = optionalEvent.get();
-            List<EventEntity> eventEntities = userSiteAccount.getEvents();
-            if (eventEntities.contains(event)) {
-                return ResponseEntity.badRequest().body("Юзер уже зарегистрирован на это мероприятие");
-            } else {
-                eventEntities.add(event);
-                userSiteAccountRepository.saveAndFlush(userSiteAccount);
-                return ResponseEntity.ok().body("Успешно");
-            }
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @GetMapping("api/getEventCities")
+    public List<EventCity> getEventCities() {
+        return eventCityRepository.findAll();
+    }
+
+    @DeleteMapping("api/deleteEventCity/{eventCityId}")
+    public ResponseEntity<?> deleteEventCity (@PathVariable Long eventCityId) {
+        eventCityRepository.deleteById(eventCityId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("api/getEventsByEventCityId/{eventCityId}")
+    public List<EventEntity> getEventsByEventCityId (@PathVariable Long eventCityId) {
+        EventCity eventCity = eventCityRepository.findById(eventCityId).get();
+        return eventCity.getEventEntities();
     }
 
     @PostMapping("api/postEventType")
@@ -102,54 +111,6 @@ public class DataBaseApi {
     @GetMapping("api/getEventsByType/{typeName}")
     public List<EventEntity> getEventsByType (@PathVariable String typeName) {
         return eventRepository.findByEventTypeName(typeName);
-    }
-
-    @PostMapping("api/addEventToCart/{userId}/{eventId}")
-    public EventCart addEventToCart (@PathVariable Long userId, @PathVariable Long eventId) {
-        Optional<EventCart> eventCartOptional = eventCartRepository.findById(eventId);
-        if (eventCartOptional.isPresent()) {
-            EventCart eventCart = eventCartOptional.get();
-            eventCart.setCount(eventCart.getCount() + 1);
-            return eventCartRepository.saveAndFlush(eventCart);
-        } else {
-            EventCart eventCart = EventCart.builder()
-                    .id(eventId)
-                    .count(1)
-                    .event(eventRepository.findById(eventId).get())
-                    .build();
-            eventCartRepository.saveAndFlush(eventCart);
-            UserSiteAccount userSiteAccount = userSiteAccountRepository.findById(userId).get();
-            userSiteAccount.getEventAddedToCart().add(eventCart);
-            userSiteAccountRepository.saveAndFlush(userSiteAccount);
-            return eventCart;
-        }
-    }
-
-    @PostMapping("api/removeEventFromCart/{userId}/{eventId}")
-    public EventCart removeEventFromCart (@PathVariable Long userId, @PathVariable Long eventId) {
-        Optional<EventCart> eventCartOptional = eventCartRepository.findById(eventId);
-        if (eventCartOptional.isPresent()) {
-            EventCart eventCart = eventCartOptional.get();
-            int count = eventCart.getCount() - 1;
-            if (count == 0) {
-                UserSiteAccount userSiteAccount = userSiteAccountRepository.findById(userId).get();
-                userSiteAccount.getEventAddedToCart().remove(eventCart);
-                userSiteAccountRepository.saveAndFlush(userSiteAccount);
-                eventCartRepository.delete(eventCart);
-                return eventCart;
-            } else {
-                eventCart.setCount(count);
-                return eventCartRepository.saveAndFlush(eventCart);
-            }
-        }
-        return null;
-    }
-
-
-    @GetMapping("api/getUserCartEvents/{userId}")
-    public List<EventCart> getUserCartEvents (@PathVariable Long userId) {
-        UserSiteAccount userSiteAccount = userSiteAccountRepository.findById(userId).get();
-        return userSiteAccount.getEventAddedToCart();
     }
 
     @SneakyThrows
@@ -194,6 +155,10 @@ public class DataBaseApi {
         EventType eventType = eventTypeRepository.findById(eventEntity.getEventType().getId()).get();
         eventType.getEventEntities().add(eventEntity);
         eventTypeRepository.saveAndFlush(eventType);
+
+        EventCity eventCity = eventCityRepository.findById(eventEntity.getCity().getId()).get();
+        eventCity.getEventEntities().add(eventEntity);
+        eventCityRepository.saveAndFlush(eventCity);
 
         return ResponseEntity.ok().build();
     }

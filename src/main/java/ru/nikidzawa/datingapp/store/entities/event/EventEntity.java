@@ -19,8 +19,6 @@ public class EventEntity implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    String city;
-
     String address;
 
     String name;
@@ -48,6 +46,9 @@ public class EventEntity implements Serializable {
 
     @ManyToOne(fetch = FetchType.EAGER)
     EventType eventType;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    EventCity city;
 
     @OneToMany(fetch = FetchType.LAZY)
     List<EventImage> eventImages;

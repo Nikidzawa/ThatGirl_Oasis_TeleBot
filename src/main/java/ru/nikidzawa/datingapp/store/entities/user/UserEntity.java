@@ -33,7 +33,6 @@ public class UserEntity implements Serializable {
 
     int age;
 
-    @Column(length = 100)
     String location;
 
     @Column(length = 150)
@@ -54,10 +53,6 @@ public class UserEntity implements Serializable {
 
     @OneToMany(fetch = FetchType.EAGER)
     List<UserAvatar> userAvatars;
-
-    @JsonIgnore
-    @OneToOne(fetch = FetchType.LAZY)
-    UserSiteAccount siteAccount;
 
     @JsonIgnore
     @OneToMany(mappedBy = "likedUser", fetch = FetchType.EAGER)

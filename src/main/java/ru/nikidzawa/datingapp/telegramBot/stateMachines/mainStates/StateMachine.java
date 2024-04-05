@@ -6,18 +6,17 @@ import org.springframework.cache.Cache;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Location;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import ru.nikidzawa.datingapp.API.ExternalApi;
 import ru.nikidzawa.datingapp.store.entities.complain.ComplainEntity;
 import ru.nikidzawa.datingapp.store.entities.error.ErrorEntity;
 import ru.nikidzawa.datingapp.store.entities.like.LikeContentType;
 import ru.nikidzawa.datingapp.store.entities.like.LikeEntity;
 import ru.nikidzawa.datingapp.store.entities.user.UserAvatar;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
-import ru.nikidzawa.datingapp.store.entities.user.UserSiteAccount;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 import ru.nikidzawa.datingapp.telegramBot.cache.CacheService;
 import ru.nikidzawa.datingapp.telegramBot.helpers.Messages;
 import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
-import ru.nikidzawa.datingapp.telegramBot.services.api.GeocodingApi;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.Geocode;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.JsonParser;
 
@@ -42,7 +41,7 @@ public class StateMachine {
     private JsonParser jsonParser;
 
     @Autowired
-    private GeocodingApi geocodingApi;
+    private ExternalApi externalApi;
 
     @Setter
     private BotFunctions botFunctions;
@@ -241,7 +240,7 @@ public class StateMachine {
             new Thread(() -> {
                 UserEntity user = cacheService.getCachedUser(userId);
                 user.setLocation(messageText);
-                Geocode coordinates = jsonParser.parseGeocode(geocodingApi.getCoordinates(messageText));
+                Geocode coordinates = jsonParser.parseGeocode(externalApi.getCoordinates(messageText));
                 user.setLongitude(coordinates.getLon());
                 user.setLatitude(coordinates.getLat());
                 cacheService.putCachedUser(userId, user);
@@ -266,7 +265,8 @@ public class StateMachine {
 
                 cachedUser.setLongitude(longitude);
                 cachedUser.setLatitude(latitude);
-                cachedUser.setLocation(jsonParser.getName(geocodingApi.getCityName(latitude, longitude)));
+                String city = jsonParser.getName(externalApi.getCityName(latitude, longitude));
+                cachedUser.setLocation(city);
                 cachedUser.setShowGeo(true);
 
                 cacheService.putCachedUser(userId, cachedUser);
@@ -507,16 +507,6 @@ public class StateMachine {
                     cachedUser.setUserAvatars(userAvatars);
                     cachedUser.setActive(true);
                     dataBaseService.saveUser(cachedUser);
-                    UserSiteAccount userSiteAccount = dataBaseService.saveUserSiteAccount(
-                            UserSiteAccount.builder()
-                                    .id(userId)
-                                    .location(cachedUser.getLocation())
-                                    .latitude(cachedUser.getLatitude())
-                                    .longitude(cachedUser.getLongitude())
-                                    .userEntity(cachedUser)
-                                    .build()
-                    );
-                    cachedUser.setSiteAccount(userSiteAccount);
                     dataBaseService.saveUser(cachedUser);
                     cacheService.evictCachedUser(userId);
                 }).start();
@@ -774,7 +764,7 @@ public class StateMachine {
                     return;
                 }
                 userEntity.setLocation(messageText);
-                Geocode geocode = jsonParser.parseGeocode(geocodingApi.getCoordinates(messageText));
+                Geocode geocode = jsonParser.parseGeocode(externalApi.getCoordinates(messageText));
                 userEntity.setLongitude(geocode.getLon());
                 userEntity.setLatitude(geocode.getLat());
                 goToEditResult(userId, userEntity);
@@ -792,7 +782,8 @@ public class StateMachine {
 
             userEntity.setLongitude(longitude);
             userEntity.setLatitude(latitude);
-            userEntity.setLocation(jsonParser.getName(geocodingApi.getCityName(latitude, longitude)));
+            String city = jsonParser.getName(externalApi.getCityName(latitude, longitude));
+            userEntity.setLocation(city);
             userEntity.setShowGeo(true);
 
             goToEditResult(userId, userEntity);
