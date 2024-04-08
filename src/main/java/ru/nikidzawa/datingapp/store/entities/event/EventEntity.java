@@ -18,7 +18,7 @@ public class EventEntity implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
-
+                                   
     String address;
 
     String name;
@@ -31,9 +31,7 @@ public class EventEntity implements Serializable {
 
     Long cost;
 
-    Double lon;
-
-    Double lat;
+    boolean favorite;
 
     @Column(length = 500)
     String smallDescription;

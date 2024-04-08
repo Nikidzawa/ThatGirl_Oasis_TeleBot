@@ -3,17 +3,24 @@ package ru.nikidzawa.datingapp.API;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.nikidzawa.datingapp.store.entities.event.*;
+import ru.nikidzawa.datingapp.API.exceptions.Unauthorized;
+import ru.nikidzawa.datingapp.store.entities.event.EventCity;
+import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
+import ru.nikidzawa.datingapp.store.entities.event.EventImage;
+import ru.nikidzawa.datingapp.store.entities.event.EventType;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
-import ru.nikidzawa.datingapp.store.repositories.*;
+import ru.nikidzawa.datingapp.store.repositories.EventCityRepository;
+import ru.nikidzawa.datingapp.store.repositories.EventImageRepository;
+import ru.nikidzawa.datingapp.store.repositories.EventRepository;
+import ru.nikidzawa.datingapp.store.repositories.EventTypeRepository;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.Geocode;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.JsonParser;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,13 +41,10 @@ public class DataBaseApi {
 
     private final JsonParser jsonParser;
 
-    private final UserRepository userRepository;
-
     private final DataBaseService dataBaseService;
 
     @Setter
     BotFunctions botFunctions;
-
 
     @GetMapping("api/getUserById/{id}")
     public ResponseEntity<?> getUser (@PathVariable Long id) {
@@ -61,18 +65,13 @@ public class DataBaseApi {
         return eventRepository.findById(id).get();
     }
 
-    @PostMapping("api/postEventCity")
-    public EventCity postEventCity (@RequestBody EventCity eventCity) {
+    @PostMapping("api/postEventCity/{userId}")
+    public EventCity postEventCity (@RequestBody EventCity eventCity, @PathVariable Long userId) {
+        checkAdminStatus(userId);
         Geocode geocode = jsonParser.parseGeocode(externalApi.getCoordinates(eventCity.getName()));
         eventCity.setLatitude(geocode.getLat());
         eventCity.setLongitude(geocode.getLon());
         return eventCityRepository.saveAndFlush(eventCity);
-    }
-
-    @GetMapping("api/getEventsByCityId/{cityId}")
-    public List<EventEntity> getEventsByCityId (@PathVariable Long cityId) {
-        EventCity eventCity = eventCityRepository.findById(cityId).get();
-        return eventCity.getEventEntities();
     }
 
     @GetMapping("api/getEventCities")
@@ -80,21 +79,48 @@ public class DataBaseApi {
         return eventCityRepository.findAll();
     }
 
-    @DeleteMapping("api/deleteEventCity/{eventCityId}")
-    public ResponseEntity<?> deleteEventCity (@PathVariable Long eventCityId) {
+    @DeleteMapping("api/deleteEventCity/{eventCityId}/{userId}")
+    public ResponseEntity<?> deleteEventCity (@PathVariable Long eventCityId, @PathVariable Long userId) {
+        checkAdminStatus(userId);
         eventCityRepository.deleteById(eventCityId);
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("api/getEventsByEventCityId/{eventCityId}")
-    public List<EventEntity> getEventsByEventCityId (@PathVariable Long eventCityId) {
-        EventCity eventCity = eventCityRepository.findById(eventCityId).get();
-        return eventCity.getEventEntities();
+    @GetMapping("api/getEventsByCityId/{cityId}")
+    public List<EventEntity> getEventsByEventCityId (@PathVariable Long cityId) {
+        return eventCityRepository.findEventEntitiesByCityId(cityId);
     }
 
-    @PostMapping("api/postEventType")
-    public EventType postEventType (@RequestBody EventType eventType) {
+    @PatchMapping("api/setOrRemoveEventFavorite/{eventId}/{userId}")
+    public EventEntity setOrRemoveEventFavorite (@PathVariable Long eventId, @PathVariable Long userId) {
+        checkAdminStatus(userId);
+        EventEntity eventEntity = eventRepository.findById(eventId).get();
+        eventEntity.setFavorite(!eventEntity.isFavorite());
+        return eventRepository.saveAndFlush(eventEntity);
+    }
+
+    @DeleteMapping("api/deleteEventById/{eventId}/{userId}")
+    public ResponseEntity<?> deleteEventById (@PathVariable Long eventId, @PathVariable Long userId) {
+        checkAdminStatus(userId);
+        EventEntity eventEntity = eventRepository.findById(eventId).get();
+        EventCity eventCity = eventEntity.getCity();
+        List<EventEntity> eventEntities = new ArrayList<>(eventCityRepository.findEventEntitiesByCityId(eventCity.getId()));
+        eventEntities.remove(eventEntity);
+        eventCity.setEventEntities(eventEntities);
+        eventCityRepository.saveAndFlush(eventCity);
+        eventRepository.delete(eventEntity);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("api/postEventType/{userId}")
+    public EventType postEventType (@RequestBody EventType eventType, @PathVariable Long userId) {
+        checkAdminStatus(userId);
         return eventTypeRepository.saveAndFlush(eventType);
+    }
+
+    @GetMapping("api/getEventsByType/{eventId}")
+    public List<EventEntity> getEventTypes(@PathVariable Long eventId) {
+        return eventTypeRepository.findEventEntitiesByEventTypeId(eventId);
     }
 
     @GetMapping("api/getAllEventTypes")
@@ -102,20 +128,17 @@ public class DataBaseApi {
         return eventTypeRepository.findAll();
     }
 
-    @DeleteMapping("api/deleteEventType/{id}")
-    public ResponseEntity<?> deleteEventTypeById (@PathVariable Long id) {
+    @DeleteMapping("api/deleteEventType/{id}/{userId}")
+    public ResponseEntity<?> deleteEventTypeById (@PathVariable Long id, @PathVariable Long userId) {
+        checkAdminStatus(userId);
         eventTypeRepository.deleteById(id);
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("api/getEventsByType/{typeName}")
-    public List<EventEntity> getEventsByType (@PathVariable String typeName) {
-        return eventRepository.findByEventTypeName(typeName);
-    }
-
     @SneakyThrows
-    @PostMapping("api/postEvent")
-    public ResponseEntity<?> postEvent(@RequestBody EventEntity eventEntity) {
+    @PostMapping("api/postEvent/{userId}")
+    public ResponseEntity<?> postEvent(@RequestBody EventEntity eventEntity, @PathVariable Long userId) {
+        checkAdminStatus(userId);
         List<EventImage> eventImages = eventEntity.getEventImages();
         eventEntity.setEventImages(null);
         EventImage mainImage = eventImageRepository.saveAndFlush(eventEntity.getMainImage());
@@ -152,14 +175,28 @@ public class DataBaseApi {
 
         eventRepository.saveAndFlush(eventEntity);
 
-        EventType eventType = eventTypeRepository.findById(eventEntity.getEventType().getId()).get();
-        eventType.getEventEntities().add(eventEntity);
+        EventType eventType = eventEntity.getEventType();
+        List<EventEntity> eventsByType = new ArrayList<>(eventTypeRepository.findEventEntitiesByEventTypeId(eventType.getId()));
+        eventsByType.add(eventEntity);
+        eventType.setEventEntities(eventsByType);
         eventTypeRepository.saveAndFlush(eventType);
 
-        EventCity eventCity = eventCityRepository.findById(eventEntity.getCity().getId()).get();
-        eventCity.getEventEntities().add(eventEntity);
-        eventCityRepository.saveAndFlush(eventCity);
+        EventCity eventCity = eventEntity.getCity();
 
+        List<EventEntity> eventEntities = new ArrayList<>(eventCityRepository.findEventEntitiesByCityId(eventCity.getId()));
+        eventEntities.add(eventEntity);
+        eventCity.setEventEntities(eventEntities);
+
+        eventCityRepository.saveAndFlush(eventCity);
         return ResponseEntity.ok().build();
+    }
+
+    private void checkAdminStatus (Long userid) {
+        String status = botFunctions.getChatMember(userid).getStatus();
+        if (status.equals("administrator") || status.equals("creator")) {
+            return;
+        } else {
+            throw new Unauthorized("Недостаточно прав для запроса");
+        }
     }
 }

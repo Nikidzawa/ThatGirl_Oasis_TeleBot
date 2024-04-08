@@ -27,6 +27,6 @@ public class EventCity {
     double longitude;
 
     @JsonIgnore
-    @OneToMany(fetch = FetchType.EAGER)
+    @OneToMany(fetch = FetchType.LAZY)
     List<EventEntity> eventEntities;
 }

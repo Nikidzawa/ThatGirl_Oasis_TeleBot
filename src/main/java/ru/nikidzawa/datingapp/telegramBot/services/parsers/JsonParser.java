@@ -30,8 +30,8 @@ public class JsonParser {
             String pos = pointNode.path("pos").asText();
             String[] lonLat = pos.split(" ");
             Geocode geocode = new Geocode();
-            geocode.setLon(Double.parseDouble(lonLat[1]));
-            geocode.setLat(Double.parseDouble(lonLat[0]));
+            geocode.setLon(Double.parseDouble(lonLat[0]));
+            geocode.setLat(Double.parseDouble(lonLat[1]));
             return geocode;
         } catch (Exception e) {
             Geocode geocode = new Geocode();

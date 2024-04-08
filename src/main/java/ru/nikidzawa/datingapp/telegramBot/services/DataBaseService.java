@@ -29,7 +29,6 @@ public class DataBaseService {
     @Autowired
     private ErrorRepository errorRepository;
 
-
     @Autowired
     private UserAvatarRepository userAvatarRepository;
 
