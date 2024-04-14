@@ -13,8 +13,17 @@ public class JsonParser {
     public String getName(String json) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        NameCity place = objectMapper.readValue(json, NameCity.class);
-        return place.getCity();
+
+        AddressResponse addressResponse = objectMapper.readValue(json, AddressResponse.class);
+        AddressResponse.Address address = addressResponse.getAddress();
+
+        return address.getCity() != null ? address.getCity()
+                : address.getMunicipality() != null ? address.getMunicipality()
+                : address.getVillage() != null ? address.getVillage()
+                : address.getTown() != null ? address.getTown()
+                : address.getState() != null ? address.getState()
+                : address.getCountry() != null ? address.getCountry()
+                : "Москва";
     }
 
     public Geocode parseGeocode(String jsonString) {

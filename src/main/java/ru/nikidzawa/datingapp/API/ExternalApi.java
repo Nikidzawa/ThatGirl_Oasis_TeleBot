@@ -38,7 +38,7 @@ public class ExternalApi {
     }
 
     public String getCityName(double latitude, double longitude) {
-        String url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + latitude + "&longitude=" + longitude + "&localityLanguage=ru";
+        String url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" + latitude + "&lon=" + longitude + "&addressdetails=1";
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<String> response;
         response = restTemplate.exchange(
