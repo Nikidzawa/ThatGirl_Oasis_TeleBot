@@ -27,6 +27,7 @@ import java.util.Optional;
 @RestController
 @RequiredArgsConstructor
 @CrossOrigin
+@RequestMapping("api/")
 public class DataBaseApi {
 
     private final EventRepository eventRepository;
@@ -46,7 +47,7 @@ public class DataBaseApi {
     @Setter
     BotFunctions botFunctions;
 
-    @GetMapping("api/getUserById/{id}")
+    @GetMapping("getUserById/{id}")
     public ResponseEntity<?> getUser (@PathVariable Long id) {
         Optional<UserEntity> userEntity = dataBaseService.getUserById(id);
         if (userEntity.isEmpty()) {
@@ -55,17 +56,17 @@ public class DataBaseApi {
         return ResponseEntity.ok(userEntity.get());
     }
 
-    @GetMapping("api/getUserStatus/{id}")
+    @GetMapping("getUserStatus/{id}")
     public String getUserStatus (@PathVariable Long id) {
         return botFunctions.getChatMember(id).getStatus();
     }
 
-    @GetMapping("api/getEvent/{id}")
+    @GetMapping("getEvent/{id}")
     public EventEntity getEventById (@PathVariable Long id) {
         return eventRepository.findById(id).get();
     }
 
-    @PostMapping("api/postEventCity/{userId}")
+    @PostMapping("postEventCity/{userId}")
     public EventCity postEventCity (@RequestBody EventCity eventCity, @PathVariable Long userId) {
         checkAdminStatus(userId);
         Geocode geocode = jsonParser.parseGeocode(externalApi.getCoordinates(eventCity.getName()));
@@ -74,24 +75,24 @@ public class DataBaseApi {
         return eventCityRepository.saveAndFlush(eventCity);
     }
 
-    @GetMapping("api/getEventCities")
+    @GetMapping("getEventCities")
     public List<EventCity> getEventCities() {
         return eventCityRepository.findAll();
     }
 
-    @DeleteMapping("api/deleteEventCity/{eventCityId}/{userId}")
+    @DeleteMapping("deleteEventCity/{eventCityId}/{userId}")
     public ResponseEntity<?> deleteEventCity (@PathVariable Long eventCityId, @PathVariable Long userId) {
         checkAdminStatus(userId);
         eventCityRepository.deleteById(eventCityId);
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("api/getEventsByCityId/{cityId}")
+    @GetMapping("getEventsByCityId/{cityId}")
     public List<EventEntity> getEventsByEventCityId (@PathVariable Long cityId) {
         return eventCityRepository.findEventEntitiesByCityId(cityId);
     }
 
-    @PatchMapping("api/setOrRemoveEventFavorite/{eventId}/{userId}")
+    @PatchMapping("setOrRemoveEventFavorite/{eventId}/{userId}")
     public EventEntity setOrRemoveEventFavorite (@PathVariable Long eventId, @PathVariable Long userId) {
         checkAdminStatus(userId);
         EventEntity eventEntity = eventRepository.findById(eventId).get();
@@ -99,7 +100,7 @@ public class DataBaseApi {
         return eventRepository.saveAndFlush(eventEntity);
     }
 
-    @DeleteMapping("api/deleteEventById/{eventId}/{userId}")
+    @DeleteMapping("deleteEventById/{eventId}/{userId}")
     public ResponseEntity<?> deleteEventById (@PathVariable Long eventId, @PathVariable Long userId) {
         checkAdminStatus(userId);
         EventEntity eventEntity = eventRepository.findById(eventId).get();
@@ -112,23 +113,23 @@ public class DataBaseApi {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("api/postEventType/{userId}")
+    @PostMapping("postEventType/{userId}")
     public EventType postEventType (@RequestBody EventType eventType, @PathVariable Long userId) {
         checkAdminStatus(userId);
         return eventTypeRepository.saveAndFlush(eventType);
     }
 
-    @GetMapping("api/getEventsByType/{eventId}")
+    @GetMapping("getEventsByType/{eventId}")
     public List<EventEntity> getEventTypes(@PathVariable Long eventId) {
         return eventTypeRepository.findEventEntitiesByEventTypeId(eventId);
     }
 
-    @GetMapping("api/getAllEventTypes")
+    @GetMapping("getAllEventTypes")
     public List<EventType> getAllEventTypes () {
         return eventTypeRepository.findAll();
     }
 
-    @DeleteMapping("api/deleteEventType/{id}/{userId}")
+    @DeleteMapping("deleteEventType/{id}/{userId}")
     public ResponseEntity<?> deleteEventTypeById (@PathVariable Long id, @PathVariable Long userId) {
         checkAdminStatus(userId);
         eventTypeRepository.deleteById(id);
@@ -136,58 +137,39 @@ public class DataBaseApi {
     }
 
     @SneakyThrows
-    @PostMapping("api/postEvent/{userId}")
-    public ResponseEntity<?> postEvent(@RequestBody EventEntity eventEntity, @PathVariable Long userId) {
+    @PostMapping("postEvent/{userId}")
+    public EventEntity postEvent(@RequestBody EventEntity eventEntity, @PathVariable Long userId) {
         checkAdminStatus(userId);
-        List<EventImage> eventImages = eventEntity.getEventImages();
-        eventEntity.setEventImages(null);
-        EventImage mainImage = eventImageRepository.saveAndFlush(eventEntity.getMainImage());
-        eventEntity.setMainImage(null);
-        eventEntity = eventRepository.saveAndFlush(eventEntity);
-        Long id = eventEntity.getId();
-        String basePath = "/" + id + "/";
-        String mainImagePath = basePath + "main";
+        EventEntity savedEventEntity = eventRepository.saveAndFlush(eventEntity);
 
-        ResponseEntity<?> createFolderResponse = externalApi.createFolder(id);
-        if (!createFolderResponse.getStatusCode().is2xxSuccessful()) {
-            return ResponseEntity.status(createFolderResponse.getStatusCode()).body(createFolderResponse.getBody());
-        }
-
-        try {
-            for (int i = 0; i < eventImages.size(); i++) {
-                String imagePath = basePath + "image(" + i + ")";
-                EventImage currentEventImage = eventImages.get(i);
-                externalApi.uploadImage(imagePath, currentEventImage.getHref());
-                currentEventImage.setHref(imagePath);
-            }
-            externalApi.uploadImage(mainImagePath, mainImage.getHref());
-            mainImage.setHref(mainImagePath);
-        } catch (Exception ex) {
-            externalApi.deleteFolder(id);
-            return ResponseEntity.notFound().build();
-        }
-
-        eventImages = eventImageRepository.saveAllAndFlush(eventImages);
-        mainImage = eventImageRepository.saveAndFlush(mainImage);
-
-        eventEntity.setEventImages(eventImages);
-        eventEntity.setMainImage(mainImage);
-
-        eventRepository.saveAndFlush(eventEntity);
-
-        EventType eventType = eventEntity.getEventType();
-        List<EventEntity> eventsByType = new ArrayList<>(eventTypeRepository.findEventEntitiesByEventTypeId(eventType.getId()));
-        eventsByType.add(eventEntity);
-        eventType.setEventEntities(eventsByType);
+        EventType eventType = savedEventEntity.getEventType();
+        List<EventEntity> eventEntities1 = eventTypeRepository.findEventEntitiesByEventTypeId(eventType.getId());
+        eventEntities1.add(savedEventEntity);
+        eventType.setEventEntities(eventEntities1);
         eventTypeRepository.saveAndFlush(eventType);
 
-        EventCity eventCity = eventEntity.getCity();
-
-        List<EventEntity> eventEntities = new ArrayList<>(eventCityRepository.findEventEntitiesByCityId(eventCity.getId()));
-        eventEntities.add(eventEntity);
-        eventCity.setEventEntities(eventEntities);
-
+        EventCity eventCity = savedEventEntity.getCity();
+        List<EventEntity> eventEntities2 = eventCityRepository.findEventEntitiesByCityId(eventCity.getId());
+        eventEntities2.add(savedEventEntity);
+        eventCity.setEventEntities(eventEntities2);
         eventCityRepository.saveAndFlush(eventCity);
+
+        return savedEventEntity;
+    }
+
+    @PatchMapping("setImages/{userId}")
+    public ResponseEntity<?> setImages (@RequestBody EventEntity eventEntity, @PathVariable Long userId) {
+        checkAdminStatus(userId);
+        EventImage mainImage = eventEntity.getMainImage();
+        eventImageRepository.saveAndFlush(mainImage);
+        List<EventImage> otherImages = eventEntity.getEventImages();
+
+        if (otherImages != null) {
+            for (EventImage eventImage : otherImages) {
+                eventImageRepository.saveAndFlush(eventImage);
+            }
+        }
+        eventRepository.saveAndFlush(eventEntity);
         return ResponseEntity.ok().build();
     }
 

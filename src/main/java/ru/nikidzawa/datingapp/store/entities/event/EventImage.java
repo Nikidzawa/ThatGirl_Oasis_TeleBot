@@ -18,6 +18,6 @@ public class EventImage implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @Column(length = 10000)
+    @Column(length = 2000)
     String href;
 }

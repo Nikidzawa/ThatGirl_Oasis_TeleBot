@@ -972,12 +972,12 @@ public class StateMachine {
             if (!messageText.equals("Отменить")) {
                 if (userAssessmentId == null) {
                     botFunctions.sendMessageNotRemoveKeyboard(userId, "Время ожидания оценки истекло");
+                    goToMenu(userId, userEntity);
                 } else {
-
+                    botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
+                    removeRecommendUser(userId, userAssessmentId);
+                    new Thread(() -> sendLike(userEntity, userAssessmentId, false, LikeContentType.TEXT, messageText)).start();
                 }
-                botFunctions.sendMessageAndKeyboard(userId, "Сообщение отправлено", botFunctions.searchButtons());
-                removeRecommendUser(userId, userAssessmentId);
-                new Thread(() -> sendLike(userEntity, userAssessmentId, false, LikeContentType.TEXT, messageText)).start();
             } else {
                 botFunctions.sendMessageAndKeyboard(userId, "Отмена отправки", botFunctions.searchButtons());
             }
