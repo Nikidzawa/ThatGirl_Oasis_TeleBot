@@ -230,47 +230,42 @@ public class StateMachine {
                 return;
             }
 
+            UserEntity user = cacheService.getCachedUser(userId);
+            user.setLocation(messageText);
+            Geocode coordinates = jsonParser.parseGeocode(externalApi.getCoordinates(messageText));
+            user.setLongitude(coordinates.getLon());
+            user.setLatitude(coordinates.getLat());
+            cacheService.putCachedUser(userId, user);
+
             if (hasBeenRegistered) {
                 botFunctions.sendMessageAndKeyboard(userId, messages.getASK_AGE(), botFunctions.customButton(String.valueOf(userEntity.getAge())));
             } else {
                 botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getASK_AGE());
             }
             cacheService.setState(userId, StateEnum.ASK_AGE);
-
-            new Thread(() -> {
-                UserEntity user = cacheService.getCachedUser(userId);
-                user.setLocation(messageText);
-                Geocode coordinates = jsonParser.parseGeocode(externalApi.getCoordinates(messageText));
-                user.setLongitude(coordinates.getLon());
-                user.setLatitude(coordinates.getLat());
-                cacheService.putCachedUser(userId, user);
-            }).start();
         }
     }
     private class AskCityGeo implements State {
         @Override
         public void handleInput(Long userId, UserEntity userEntity, Message message, boolean hasBeenRegistered) {
+            UserEntity cachedUser = cacheService.getCachedUser(userId);
+            Location location = message.getLocation();
+            double longitude = location.getLongitude();
+            double latitude = location.getLatitude();
+
+            cachedUser.setLongitude(longitude);
+            cachedUser.setLatitude(latitude);
+            String city = jsonParser.getName(externalApi.getCityName(latitude, longitude));
+            cachedUser.setLocation(city);
+            cachedUser.setShowGeo(true);
+
+            cacheService.putCachedUser(userId, cachedUser);
             if (hasBeenRegistered) {
                 botFunctions.sendMessageAndKeyboard(userId, messages.getASK_AGE(), botFunctions.customButton(String.valueOf(userEntity.getAge())));
             } else {
                 botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getASK_AGE());
             }
             cacheService.setState(userId, StateEnum.ASK_AGE);
-
-            new Thread(() -> {
-                UserEntity cachedUser = cacheService.getCachedUser(userId);
-                Location location = message.getLocation();
-                double longitude = location.getLongitude();
-                double latitude = location.getLatitude();
-
-                cachedUser.setLongitude(longitude);
-                cachedUser.setLatitude(latitude);
-                String city = jsonParser.getName(externalApi.getCityName(latitude, longitude));
-                cachedUser.setLocation(city);
-                cachedUser.setShowGeo(true);
-
-                cacheService.putCachedUser(userId, cachedUser);
-            }).start();
         }
     }
 
@@ -1291,33 +1286,23 @@ public class StateMachine {
     }
 
     public void showNextUser(Long userId, UserEntity userEntity) {
-        UserEntity anotherUser = getRecommendation(userEntity, userId);
-        botFunctions.sendOtherProfile(userId, anotherUser, userEntity);
-        cacheService.putUserAssessmentId(userId, anotherUser.getId());
-        cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+        List<Long> excludedUserIds = cacheService.getExcludedUserIds(userId);
+        List<UserEntity> recommendations = dataBaseService.getRecomendation(userEntity, excludedUserIds);
+        if (recommendations.isEmpty()) {
+            botFunctions.sendMessageAndRemoveKeyboard(userId, "Вы посмотрели все рекомендации, возвращаемся в меню");
+            goToMenu(userId, userEntity);
+        } else {
+            UserEntity recommendationUser = recommendations.getFirst();
+            botFunctions.sendOtherProfile(userId, recommendationUser, userEntity);
+            cacheService.putUserAssessmentId(userId, recommendationUser.getId());
+            cacheService.setState(userId, StateEnum.FIND_PEOPLES);
+        }
     }
 
     public void removeRecommendUser (Long myId, Long recommendUserId) {
         List<Long> excludedUserIds = cacheService.getExcludedUserIds(myId);
         excludedUserIds.add(recommendUserId);
         cacheService.putExcludedUserIds(myId, excludedUserIds);
-    }
-
-    public UserEntity getRecommendation(UserEntity myProfile, Long userId) {
-        List<Long> excludedUserIds = cacheService.getExcludedUserIds(userId);
-        List<UserEntity> recomendation = dataBaseService.getRecomendation(myProfile, excludedUserIds);
-        if (recomendation.isEmpty()) {
-            cacheService.putExcludedUserIds(userId, new ArrayList<>());
-            List<UserEntity> newRecommendations = dataBaseService.getRecomendation(myProfile, new ArrayList<>());
-            if (newRecommendations.isEmpty()) {
-                //todo
-                return dataBaseService.getAllUsers().getFirst();
-            } else {
-                return newRecommendations.getFirst();
-            }
-        } else {
-            return recomendation.getFirst();
-        }
     }
 
     public void showWhoLikedMe (Long userId, UserEntity myProfile, LikeEntity like) {

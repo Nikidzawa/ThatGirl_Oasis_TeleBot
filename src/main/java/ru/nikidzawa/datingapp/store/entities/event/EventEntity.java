@@ -27,6 +27,8 @@ public class EventEntity implements Serializable {
 
     String time;
 
+    String contactPhone;
+
     String rating;
 
     Long cost;

@@ -58,6 +58,8 @@ public class CommandStateMachine {
         String messageText = message.getText();
         CommandState commandState = commands.get(messageText);
         if (commandState != null) {
+            cacheService.evictCachedUser(userId);
+            cacheService.evictComplaintUser(userId);
             commandState.handleInput(userId, message, status, optionalUser);
         } else {
             botFunctions.sendMessageNotRemoveKeyboard(userId, "Команда не найдена. Если вы не хотели указывать команду, то не начинайте сообщение со знака /");
@@ -171,7 +173,6 @@ public class CommandStateMachine {
                     botFunctions.sendMessageNotRemoveKeyboard(
                             userId,
                             "Ошибка номер: " + errorEntity.getId() + "\nОписание ошибки: " + errorEntity.getDescription()
-
                     );
                     dataBaseService.deleteError(errorEntity);
                 }, () -> botFunctions.sendMessageNotRemoveKeyboard(userId, "Больше жалоб не поступало"));

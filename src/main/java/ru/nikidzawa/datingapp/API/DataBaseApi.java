@@ -109,6 +109,13 @@ public class DataBaseApi {
         eventEntities.remove(eventEntity);
         eventCity.setEventEntities(eventEntities);
         eventCityRepository.saveAndFlush(eventCity);
+
+        EventType eventType = eventEntity.getEventType();
+        List<EventEntity> eventEntities2 = new ArrayList<>(eventTypeRepository.findEventEntitiesByEventTypeId(eventType.getId()));
+        eventEntities2.remove(eventEntity);
+        eventType.setEventEntities(eventEntities2);
+        eventTypeRepository.saveAndFlush(eventType);
+
         eventRepository.delete(eventEntity);
         return ResponseEntity.ok().build();
     }
