@@ -3,6 +3,11 @@ package ru.nikidzawa.datingapp.API;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.nikidzawa.datingapp.API.exceptions.Unauthorized;
@@ -20,6 +25,8 @@ import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.Geocode;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.JsonParser;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -143,6 +150,60 @@ public class DataBaseApi {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("startPay/{eventId}/{count}")
+    public ResponseEntity<?> startPay(@PathVariable Long eventId, @PathVariable Long count) {
+        String apiUrl = "https://api.yookassa.ru/v3/payments";
+        String shopId = "377347";
+        String key = "test_SxUjBzknf1nAyjUVLL8nODeg6c0G7LhKVsCxnYfYCa8";
+        String idempotenceKey = "2";
+
+        return eventRepository.findById(eventId).map(eventEntity -> {
+            try {
+                CloseableHttpClient httpClient = HttpClients.createDefault();
+                HttpPost request = new HttpPost(apiUrl);
+                StringEntity params = new StringEntity(
+                        "{" +
+                                "\"amount\": {" +
+                                "\"value\": \"" + eventEntity.getCost() * count + "\"," +
+                                "\"currency\": \"RUB\"" +
+                                "}," +
+                                "\"payment_method_data\": {" +
+                                "\"type\": \"bank_card\"" +
+                                "}," +
+                                "\"confirmation\": {" +
+                                "\"type\": \"redirect\"," +
+                                "\"return_url\": \"http://localhost:3000\"" +
+                                "}," +
+                                "\"description\": \"Заказ №72\"" +
+                                "}"
+                );
+                request.addHeader("content-type", "application/json");
+                request.addHeader("Idempotence-Key", idempotenceKey);
+                request.addHeader("Authorization", "Basic " +
+                        java.util.Base64.getEncoder().encodeToString((shopId + ":" + key).getBytes()));
+
+                request.setEntity(params);
+
+                HttpResponse response = httpClient.execute(request);
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode >= 200 && statusCode < 300) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+                    StringBuilder result = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        result.append(line);
+                    }
+                    return ResponseEntity.ok(result.toString());
+                } else {
+                    return ResponseEntity.status(statusCode).build();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                return ResponseEntity.status(500).body("Internal server error");
+            }
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @SneakyThrows
     @PostMapping("postEvent/{userId}")
     public EventEntity postEvent(@RequestBody EventEntity eventEntity, @PathVariable Long userId) {
@@ -181,10 +242,15 @@ public class DataBaseApi {
     }
 
     private void checkAdminStatus (Long userid) {
-        String status = botFunctions.getChatMember(userid).getStatus();
-        if (status.equals("administrator") || status.equals("creator")) {
-            return;
-        } else {
+        String status;
+        try {
+            status = botFunctions.getChatMember(userid).getStatus();
+            if (status.equals("administrator") || status.equals("creator")) {
+                return;
+            } else {
+                throw new Unauthorized("Недостаточно прав для запроса");
+            }
+        } catch (Exception e) {
             throw new Unauthorized("Недостаточно прав для запроса");
         }
     }
