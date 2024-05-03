@@ -10,16 +10,17 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.nikidzawa.datingapp.API.exceptions.NotFoundException;
 import ru.nikidzawa.datingapp.API.exceptions.Unauthorized;
 import ru.nikidzawa.datingapp.store.entities.event.EventCity;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.event.EventImage;
 import ru.nikidzawa.datingapp.store.entities.event.EventType;
+import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
+import ru.nikidzawa.datingapp.store.entities.payment.PaymentResponse;
+import ru.nikidzawa.datingapp.store.entities.payment.PaymentStatus;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
-import ru.nikidzawa.datingapp.store.repositories.EventCityRepository;
-import ru.nikidzawa.datingapp.store.repositories.EventImageRepository;
-import ru.nikidzawa.datingapp.store.repositories.EventRepository;
-import ru.nikidzawa.datingapp.store.repositories.EventTypeRepository;
+import ru.nikidzawa.datingapp.store.repositories.*;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.Geocode;
@@ -30,6 +31,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -50,6 +52,8 @@ public class DataBaseApi {
     private final JsonParser jsonParser;
 
     private final DataBaseService dataBaseService;
+
+    private final PaymentRepository paymentRepository;
 
     @Setter
     BotFunctions botFunctions;
@@ -150,58 +154,81 @@ public class DataBaseApi {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("startPay/{eventId}/{count}")
-    public ResponseEntity<?> startPay(@PathVariable Long eventId, @PathVariable Long count) {
+    @PostMapping("startPay")
+    public ResponseEntity<?> startPay(@RequestBody List<PaymentResponse> paymentResponses) {
         String apiUrl = "https://api.yookassa.ru/v3/payments";
         String shopId = "377347";
         String key = "test_SxUjBzknf1nAyjUVLL8nODeg6c0G7LhKVsCxnYfYCa8";
-        String idempotenceKey = "2";
+        String idempotenceKey;
 
-        return eventRepository.findById(eventId).map(eventEntity -> {
-            try {
-                CloseableHttpClient httpClient = HttpClients.createDefault();
-                HttpPost request = new HttpPost(apiUrl);
-                StringEntity params = new StringEntity(
-                        "{" +
-                                "\"amount\": {" +
-                                "\"value\": \"" + eventEntity.getCost() * count + "\"," +
-                                "\"currency\": \"RUB\"" +
-                                "}," +
-                                "\"payment_method_data\": {" +
-                                "\"type\": \"bank_card\"" +
-                                "}," +
-                                "\"confirmation\": {" +
-                                "\"type\": \"redirect\"," +
-                                "\"return_url\": \"http://localhost:3000\"" +
-                                "}," +
-                                "\"description\": \"Заказ №72\"" +
-                                "}"
-                );
-                request.addHeader("content-type", "application/json");
-                request.addHeader("Idempotence-Key", idempotenceKey);
-                request.addHeader("Authorization", "Basic " +
-                        java.util.Base64.getEncoder().encodeToString((shopId + ":" + key).getBytes()));
+        long finalCost = paymentResponses.stream()
+                .mapToLong(paymentResponse -> paymentResponse.getCount() * paymentResponse.getCost())
+                .sum();
 
-                request.setEntity(params);
-
-                HttpResponse response = httpClient.execute(request);
-                int statusCode = response.getStatusLine().getStatusCode();
-                if (statusCode >= 200 && statusCode < 300) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-                    StringBuilder result = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        result.append(line);
+        List<EventEntity> eventEntities = paymentResponses.stream()
+                .map(paymentResponse -> {
+                    Long eventId = paymentResponse.getId();
+                    Optional<EventEntity> eventEntity = eventRepository.findById(eventId);
+                    if (eventEntity.isPresent()) {
+                        return eventEntity.get();
+                    } else {
+                        throw new NotFoundException("Событие с id = " + eventId + " не найдено. Оплата отменена");
                     }
-                    return ResponseEntity.ok(result.toString());
-                } else {
-                    return ResponseEntity.status(statusCode).build();
+                })
+                .collect(Collectors.toList());
+
+        PaymentEntity paymentEntity = PaymentEntity.builder()
+                .events(eventEntities)
+                .cost(finalCost)
+                .paymentStatus(PaymentStatus.WAIT_FOR_PAY)
+                .build();
+
+        PaymentEntity payment = paymentRepository.saveAndFlush(paymentEntity);
+        idempotenceKey = payment.getId().toString();
+
+        try {
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+            HttpPost request = new HttpPost(apiUrl);
+            StringEntity params = new StringEntity(
+                    "{" +
+                            "\"amount\": {" +
+                            "\"value\": \"" + finalCost + "\"," +
+                            "\"currency\": \"RUB\"" +
+                            "}," +
+                            "\"payment_method_data\": {" +
+                            "\"type\": \"bank_card\"" +
+                            "}," +
+                            "\"confirmation\": {" +
+                            "\"type\": \"redirect\"," +
+                            "\"return_url\": \"http://localhost:3000\"" +
+                            "}," +
+                            "\"description\": \"Заказ №" + idempotenceKey + "\"" +
+                            "\"metadata\": {" +
+                            "\"userData\": \"123\"}" +
+                            "}"
+            );
+            request.addHeader("content-type", "application/json");
+            request.addHeader("Idempotence-Key", idempotenceKey);
+            request.addHeader("Authorization", "Basic " +
+                    java.util.Base64.getEncoder().encodeToString((shopId + ":" + key).getBytes()));
+            request.setEntity(params);
+            HttpResponse response = httpClient.execute(request);
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode >= 200 && statusCode < 300) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+                StringBuilder result = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    result.append(line);
                 }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                return ResponseEntity.status(500).body("Internal server error");
+                return ResponseEntity.ok(result.toString());
+            } else {
+                return ResponseEntity.status(statusCode).build();
             }
-        }).orElse(ResponseEntity.notFound().build());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(500).body("Internal server error");
+        }
     }
 
     @SneakyThrows
