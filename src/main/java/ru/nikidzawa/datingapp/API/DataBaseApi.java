@@ -3,22 +3,13 @@ package ru.nikidzawa.datingapp.API;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.nikidzawa.datingapp.API.exceptions.NotFoundException;
 import ru.nikidzawa.datingapp.API.exceptions.Unauthorized;
 import ru.nikidzawa.datingapp.store.entities.event.EventCity;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.event.EventImage;
 import ru.nikidzawa.datingapp.store.entities.event.EventType;
-import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
-import ru.nikidzawa.datingapp.store.entities.payment.PaymentResponse;
-import ru.nikidzawa.datingapp.store.entities.payment.PaymentStatus;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.store.repositories.*;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
@@ -26,12 +17,9 @@ import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.Geocode;
 import ru.nikidzawa.datingapp.telegramBot.services.parsers.JsonParser;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -152,83 +140,6 @@ public class DataBaseApi {
         checkAdminStatus(userId);
         eventTypeRepository.deleteById(id);
         return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("startPay")
-    public ResponseEntity<?> startPay(@RequestBody List<PaymentResponse> paymentResponses) {
-        String apiUrl = "https://api.yookassa.ru/v3/payments";
-        String shopId = "377347";
-        String key = "test_SxUjBzknf1nAyjUVLL8nODeg6c0G7LhKVsCxnYfYCa8";
-        String idempotenceKey;
-
-        long finalCost = paymentResponses.stream()
-                .mapToLong(paymentResponse -> paymentResponse.getCount() * paymentResponse.getCost())
-                .sum();
-
-        List<EventEntity> eventEntities = paymentResponses.stream()
-                .map(paymentResponse -> {
-                    Long eventId = paymentResponse.getId();
-                    Optional<EventEntity> eventEntity = eventRepository.findById(eventId);
-                    if (eventEntity.isPresent()) {
-                        return eventEntity.get();
-                    } else {
-                        throw new NotFoundException("Событие с id = " + eventId + " не найдено. Оплата отменена");
-                    }
-                })
-                .collect(Collectors.toList());
-
-        PaymentEntity paymentEntity = PaymentEntity.builder()
-                .events(eventEntities)
-                .cost(finalCost)
-                .paymentStatus(PaymentStatus.WAIT_FOR_PAY)
-                .build();
-
-        PaymentEntity payment = paymentRepository.saveAndFlush(paymentEntity);
-        idempotenceKey = payment.getId().toString();
-
-        try {
-            CloseableHttpClient httpClient = HttpClients.createDefault();
-            HttpPost request = new HttpPost(apiUrl);
-            StringEntity params = new StringEntity(
-                    "{" +
-                            "\"amount\": {" +
-                            "\"value\": \"" + finalCost + "\"," +
-                            "\"currency\": \"RUB\"" +
-                            "}," +
-                            "\"payment_method_data\": {" +
-                            "\"type\": \"bank_card\"" +
-                            "}," +
-                            "\"confirmation\": {" +
-                            "\"type\": \"redirect\"," +
-                            "\"return_url\": \"http://localhost:3000\"" +
-                            "}," +
-                            "\"description\": \"Заказ №" + idempotenceKey + "\"" +
-                            "\"metadata\": {" +
-                            "\"userData\": \"123\"}" +
-                            "}"
-            );
-            request.addHeader("content-type", "application/json");
-            request.addHeader("Idempotence-Key", idempotenceKey);
-            request.addHeader("Authorization", "Basic " +
-                    java.util.Base64.getEncoder().encodeToString((shopId + ":" + key).getBytes()));
-            request.setEntity(params);
-            HttpResponse response = httpClient.execute(request);
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode >= 200 && statusCode < 300) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-                StringBuilder result = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    result.append(line);
-                }
-                return ResponseEntity.ok(result.toString());
-            } else {
-                return ResponseEntity.status(statusCode).build();
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return ResponseEntity.status(500).body("Internal server error");
-        }
     }
 
     @SneakyThrows
