@@ -6,11 +6,11 @@ import java.util.HashSet;
 import java.util.List;
 
 @Component
-public class RolesController {
+public class RoleStates {
     public HashSet<String> superRoles;
     public HashSet<String> allRoles;
 
-    public RolesController () {
+    public RoleStates() {
         superRoles = new HashSet<>(List.of("creator", "administrator"));
         allRoles = new HashSet<>(List.of("member", "creator", "administrator"));
     }

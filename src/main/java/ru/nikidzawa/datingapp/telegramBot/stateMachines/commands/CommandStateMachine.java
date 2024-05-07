@@ -13,7 +13,7 @@ import ru.nikidzawa.datingapp.telegramBot.helpers.Messages;
 import ru.nikidzawa.datingapp.telegramBot.services.DataBaseService;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateEnum;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateMachine;
-import ru.nikidzawa.datingapp.telegramBot.stateMachines.roles.RolesController;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.roles.RoleStates;
 
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +35,7 @@ public class CommandStateMachine {
     private DataBaseService dataBaseService;
 
     @Autowired
-    private RolesController rolesController;
+    private RoleStates roleStates;
 
     @Autowired
     private CacheService cacheService;
@@ -69,7 +69,7 @@ public class CommandStateMachine {
     private class Start implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (rolesController.allRoles.contains(role)) {
+            if (roleStates.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     if (userEntity.isActive()) {
                         stateMachine.goToMenu(userId, userEntity);
@@ -84,7 +84,7 @@ public class CommandStateMachine {
     private class Menu implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (rolesController.allRoles.contains(role)) {
+            if (roleStates.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     stateMachine.goToMenu(userId, userEntity);
                     if (!userEntity.isActive()) {
@@ -99,7 +99,7 @@ public class CommandStateMachine {
     private class Error implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (rolesController.allRoles.contains(role)) {
+            if (roleStates.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     if (!userEntity.isActive()) {
                         stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
@@ -115,7 +115,7 @@ public class CommandStateMachine {
     private class FAQ implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (rolesController.allRoles.contains(role)) {
+            if (roleStates.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     if (!userEntity.isActive()) {
                         stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
@@ -131,7 +131,7 @@ public class CommandStateMachine {
     private class Analysis implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (rolesController.superRoles.contains(role)) {
+            if (roleStates.superRoles.contains(role)) {
                 botFunctions.sendMessageAndRemoveKeyboard(userId, "Идёт анализ, пожалуйста, подождите...");
                 String[] results = dataBaseService.findTop10CitiesByUserCount();
                 Long size = dataBaseService.getCountActiveAndNotBannedUsers();
@@ -166,7 +166,7 @@ public class CommandStateMachine {
     private class ShowErrors implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (rolesController.superRoles.contains(role)) {
+            if (roleStates.superRoles.contains(role)) {
                 List<ErrorEntity> errorEntities = dataBaseService.findAllErrors();
                 Optional<ErrorEntity> optionalError = errorEntities.stream().findAny();
                 optionalError.ifPresentOrElse(errorEntity -> {
@@ -185,7 +185,7 @@ public class CommandStateMachine {
     private class Complains implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (rolesController.superRoles.contains(role)) {
+            if (roleStates.superRoles.contains(role)) {
                 getComplaint(userId);
             } else {
                 botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_ENOUGH());

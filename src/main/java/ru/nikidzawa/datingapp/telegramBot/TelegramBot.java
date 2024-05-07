@@ -9,7 +9,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
-import ru.nikidzawa.datingapp.API.DataBaseApi;
+import ru.nikidzawa.datingapp.api.internal.controllers.users.RolesController;
 import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 import ru.nikidzawa.datingapp.telegramBot.botFunctions.BotFunctions;
 import ru.nikidzawa.datingapp.telegramBot.cache.CacheService;
@@ -19,7 +19,7 @@ import ru.nikidzawa.datingapp.telegramBot.stateMachines.callBacks.CallBacksState
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.commands.CommandStateMachine;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateEnum;
 import ru.nikidzawa.datingapp.telegramBot.stateMachines.mainStates.StateMachine;
-import ru.nikidzawa.datingapp.telegramBot.stateMachines.roles.RolesController;
+import ru.nikidzawa.datingapp.telegramBot.stateMachines.roles.RoleStates;
 
 import java.util.HashSet;
 import java.util.List;
@@ -55,10 +55,10 @@ public class TelegramBot extends TelegramLongPollingBot {
     CallBacksStateMachine callBacksStateMachine;
 
     @Autowired
-    RolesController rolesController;
+    RoleStates roleStates;
 
     @Autowired
-    DataBaseApi dataBaseApi;
+    RolesController rolesController;
 
 
     private final HashSet<String> menuButtons;
@@ -74,7 +74,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         stateMachine.setBotFunctions(botFunctions);
         commandStateMachine.setBotFunctions(botFunctions);
         callBacksStateMachine.setBotFunctions(botFunctions);
-        dataBaseApi.setBotFunctions(botFunctions);
+        rolesController.setBotFunctions(botFunctions);
     }
 
     @Override
@@ -114,7 +114,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @SneakyThrows
     private boolean isSubscribe (Long userId, String role) {
-        if (rolesController.allRoles.contains(role)) {return true;}
+        if (roleStates.allRoles.contains(role)) {return true;}
         else {
             botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
             return false;

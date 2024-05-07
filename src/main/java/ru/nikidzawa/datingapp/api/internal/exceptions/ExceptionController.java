@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.API.exceptions;
+package ru.nikidzawa.datingapp.api.internal.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

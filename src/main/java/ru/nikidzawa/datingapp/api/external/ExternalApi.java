@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.API;
+package ru.nikidzawa.datingapp.api.external;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;

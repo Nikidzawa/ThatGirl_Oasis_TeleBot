@@ -1,22 +1,15 @@
-package ru.nikidzawa.datingapp.API.payment;
+package ru.nikidzawa.datingapp.api.internal.controllers.payments;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.nikidzawa.datingapp.API.exceptions.NotFoundException;
-import ru.nikidzawa.datingapp.API.exceptions.PaymentException;
-import ru.nikidzawa.datingapp.API.payment.helpers.Entities.sendPay.SendPay;
-import ru.nikidzawa.datingapp.API.payment.helpers.PaymentHelper;
-import ru.nikidzawa.datingapp.API.payment.helpers.Entities.receivePay.ReceivePay;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities.Payment;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.PaymentHelper;
+import ru.nikidzawa.datingapp.api.internal.exceptions.NotFoundException;
+import ru.nikidzawa.datingapp.api.internal.exceptions.PaymentException;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentResponse;
@@ -25,9 +18,7 @@ import ru.nikidzawa.datingapp.store.repositories.EventRepository;
 import ru.nikidzawa.datingapp.store.repositories.PaymentRepository;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -46,21 +37,23 @@ public class PaymentController {
     PaymentHelper paymentHelper;
 
     @PostMapping("receivePay")
-    public ResponseEntity<?> receivePay (@RequestBody ReceivePay payResult) {
+    public ResponseEntity<?> receivePay (@RequestBody Payment payResult) {
         try {
-            String status = payResult.getEvent();
+            String status = payResult.getStatus();
             switch (status) {
                 case "waiting_for_capture" -> {
-                    HttpResponse httpResponse = paymentHelper.successPay();
+                    System.out.println("Подтверждение платежа");
+                    HttpResponse httpResponse = paymentHelper.successPay(payResult.getId(), payResult.getMetadata().getLocalPaymentId());
                     int code = httpResponse.getStatusLine().getStatusCode();
                     if (!(code >= 200 && code < 300)) {
                         throw new PaymentException("Ошибка при подвтерждении платежа");
                     }
                 }
                 case "payment.succeeded" -> {
+                    System.out.println("Оплата прошла");
                 }
                 case "payment.canceled" -> {
-
+                    System.out.println("Оплата отменена");
                 }
             }
             return ResponseEntity.ok().build();
@@ -69,9 +62,8 @@ public class PaymentController {
         }
     }
 
-    @PostMapping("startPay/{mail}")
-    public ResponseEntity<?> startPay(@PathVariable String mail,
-                                      @RequestBody List<PaymentResponse> paymentResponses) {
+    @PostMapping("startPay")
+    public ResponseEntity<?> startPay(@RequestBody List<PaymentResponse> paymentResponses) {
         long finalCost = paymentResponses.stream()
                 .mapToLong(paymentResponse -> paymentResponse.getCount() * paymentResponse.getCost())
                 .sum();
@@ -91,7 +83,6 @@ public class PaymentController {
         PaymentEntity paymentEntity = PaymentEntity.builder()
                 .events(eventEntities)
                 .cost(finalCost)
-                .mail(mail)
                 .paymentStatus(PaymentStatus.WAIT_FOR_PAY)
                 .build();
 
@@ -110,10 +101,11 @@ public class PaymentController {
                 }
                 return ResponseEntity.ok(result.toString());
             } else {
+                paymentRepository.delete(payment);
                 return ResponseEntity.status(statusCode).build();
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
+            paymentRepository.delete(payment);
             return ResponseEntity.status(500).body("Internal server error");
         }
     }

@@ -1,6 +1,5 @@
-package ru.nikidzawa.datingapp.API.payment.helpers.Entities.sendPay;
+package ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,13 +25,7 @@ public class SendPay {
     @Builder
     public static class Confirmation {
         private String type;
-        private String returnUrl;
-    }
-    @Getter
-    @Setter
-    @Builder
-    public static class Metadata {
-        private String localPaymentId;
+        private String return_url;
     }
 
     private Amount amount;
