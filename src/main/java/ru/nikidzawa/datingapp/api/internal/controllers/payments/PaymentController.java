@@ -7,12 +7,13 @@ import org.apache.http.HttpResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities.Payment;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities.PaymentResponse;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.PaymentHelper;
 import ru.nikidzawa.datingapp.api.internal.exceptions.NotFoundException;
 import ru.nikidzawa.datingapp.api.internal.exceptions.PaymentException;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
-import ru.nikidzawa.datingapp.store.entities.payment.PaymentResponse;
+import ru.nikidzawa.datingapp.store.entities.payment.PaymentOrder;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentStatus;
 import ru.nikidzawa.datingapp.store.repositories.EventRepository;
 import ru.nikidzawa.datingapp.store.repositories.PaymentRepository;
@@ -37,25 +38,25 @@ public class PaymentController {
     PaymentHelper paymentHelper;
 
     @PostMapping("receivePay")
-    public ResponseEntity<?> receivePay (@RequestBody Payment payResult) {
+    public ResponseEntity<?> receivePay (@RequestBody PaymentResponse paymentResponse) {
         try {
-            String status = payResult.getStatus();
-            switch (status) {
-                case "waiting_for_capture" -> {
-                    System.out.println("Подтверждение платежа");
-                    HttpResponse httpResponse = paymentHelper.successPay(payResult.getId(), payResult.getMetadata().getLocalPaymentId());
-                    int code = httpResponse.getStatusLine().getStatusCode();
-                    if (!(code >= 200 && code < 300)) {
-                        throw new PaymentException("Ошибка при подвтерждении платежа");
+            new Thread(() -> {
+                String status = paymentResponse.getEvent();
+                Payment payment = paymentResponse.getObject();
+                switch (status) {
+                    case "payment.waiting_for_capture" -> {
+                        HttpResponse httpResponse = paymentHelper.successPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
+                        int code = httpResponse.getStatusLine().getStatusCode();
+                        if (!(code >= 200 && code < 300)) {
+                            throw new PaymentException("Ошибка при подвтерждении платежа");
+                        } else {
+                            System.out.println("Подтверждение платежа прошло успешно");
+                        }
                     }
+                    case "payment.succeeded" -> System.out.println("Оплата прошла");
+                    case "payment.canceled" -> System.out.println("Оплата отменена");
                 }
-                case "payment.succeeded" -> {
-                    System.out.println("Оплата прошла");
-                }
-                case "payment.canceled" -> {
-                    System.out.println("Оплата отменена");
-                }
-            }
+            }).start();
             return ResponseEntity.ok().build();
         } catch (Exception ex) {
             throw new PaymentException("Ошибка оплаты");
@@ -63,14 +64,14 @@ public class PaymentController {
     }
 
     @PostMapping("startPay")
-    public ResponseEntity<?> startPay(@RequestBody List<PaymentResponse> paymentResponses) {
-        long finalCost = paymentResponses.stream()
-                .mapToLong(paymentResponse -> paymentResponse.getCount() * paymentResponse.getCost())
+    public ResponseEntity<?> startPay(@RequestBody List<PaymentOrder> paymentResponse) {
+        long finalCost = paymentResponse.stream()
+                .mapToLong(paymentOrder -> paymentOrder.getCount() * paymentOrder.getCost())
                 .sum();
 
-        List<EventEntity> eventEntities = paymentResponses.stream()
-                .map(paymentResponse -> {
-                    Long eventId = paymentResponse.getId();
+        List<EventEntity> eventEntities = paymentResponse.stream()
+                .map(paymentOrder -> {
+                    Long eventId = paymentOrder.getId();
                     Optional<EventEntity> eventEntity = eventRepository.findById(eventId);
                     if (eventEntity.isPresent()) {
                         return eventEntity.get();

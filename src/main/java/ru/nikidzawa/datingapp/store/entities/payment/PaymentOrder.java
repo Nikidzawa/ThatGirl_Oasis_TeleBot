@@ -11,7 +11,7 @@ import java.util.List;
 
 @Getter
 @Setter
-public class PaymentResponse extends EventEntity {
+public class PaymentOrder extends EventEntity {
     int count;
 
     String address;
