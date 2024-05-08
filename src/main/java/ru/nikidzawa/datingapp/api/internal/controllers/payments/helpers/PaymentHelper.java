@@ -10,8 +10,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities.Metadata;
-import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities.SendPay;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.Metadata;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.SendPay;
 
 import java.io.IOException;
 
@@ -56,6 +56,7 @@ public class PaymentHelper {
                 .localPaymentId(localPaymentId)
                 .build());
         sendPay.setDescription("Заказ №" + localPaymentId);
+
         ObjectMapper objectMapper = new ObjectMapper();
         String json = objectMapper.writeValueAsString(sendPay);
 

@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.nikidzawa.datingapp.api.internal.controllers.users.RolesController;
@@ -37,9 +38,10 @@ public class EventsController {
 
     EventImageRepository eventImageRepository;
 
-    @GetMapping("{id}")
-    public EventEntity getEventById (@PathVariable Long id) {
-        return eventRepository.findById(id).orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
+    @GetMapping("{eventId}")
+    @Cacheable(cacheNames = "event", key = "#eventId")
+    public EventEntity getEventById (@PathVariable Long eventId) {
+        return eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
     }
 
     @DeleteMapping("{eventId}/{userId}")
@@ -105,5 +107,12 @@ public class EventsController {
         }
         eventRepository.saveAndFlush(eventEntity);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("checkMemberStatus/{eventId}/{mail}")
+    public EventEntity checkMemberStatus (@PathVariable Long eventId,
+                                          @PathVariable String mail) {
+        return eventRepository.checkRegister(eventId, mail)
+                .orElseThrow(() -> new NotFoundException("Пользователь не зарегистрирвоан на мероприятие"));
     }
 }

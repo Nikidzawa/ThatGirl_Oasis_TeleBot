@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
+import ru.nikidzawa.datingapp.store.entities.siteAccount.SiteAccount;
 
 import java.util.ArrayList;
 import java.util.List;

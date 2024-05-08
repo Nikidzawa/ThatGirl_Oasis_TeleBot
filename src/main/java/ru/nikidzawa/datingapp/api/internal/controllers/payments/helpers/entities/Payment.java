@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities;
+package ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities;
 
 import lombok.Getter;
 

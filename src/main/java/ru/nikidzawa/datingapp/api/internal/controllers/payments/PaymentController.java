@@ -6,11 +6,13 @@ import lombok.experimental.FieldDefaults;
 import org.apache.http.HttpResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities.Payment;
-import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.Entities.PaymentResponse;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.Payment;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.PaymentResponse;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.PaymentHelper;
 import ru.nikidzawa.datingapp.api.internal.exceptions.NotFoundException;
 import ru.nikidzawa.datingapp.api.internal.exceptions.PaymentException;
+import ru.nikidzawa.datingapp.configs.mail.MailSender;
+import ru.nikidzawa.datingapp.configs.qrCode.QrCodeGenerator;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentOrder;
@@ -37,6 +39,10 @@ public class PaymentController {
 
     PaymentHelper paymentHelper;
 
+    MailSender mailSender;
+
+    QrCodeGenerator qrCodeGenerator;
+
     @PostMapping("receivePay")
     public ResponseEntity<?> receivePay (@RequestBody PaymentResponse paymentResponse) {
         try {
@@ -49,22 +55,33 @@ public class PaymentController {
                         int code = httpResponse.getStatusLine().getStatusCode();
                         if (!(code >= 200 && code < 300)) {
                             throw new PaymentException("Ошибка при подвтерждении платежа");
-                        } else {
-                            System.out.println("Подтверждение платежа прошло успешно");
                         }
                     }
-                    case "payment.succeeded" -> System.out.println("Оплата прошла");
-                    case "payment.canceled" -> System.out.println("Оплата отменена");
+                    case "payment.succeeded" -> {
+                        PaymentEntity paymentEntity =
+                                paymentRepository.findById(Long.valueOf(payment.getMetadata().getLocalPaymentId()))
+                                        .orElseThrow(() -> new PaymentException("Платёж не найден"));
+                        List<EventEntity> eventEntities = paymentEntity.getEvents();
+                        eventEntities.forEach(event -> {
+                            String path = paymentEntity.getId() + "-" + event.getId();
+                            String mail = paymentEntity.getMail();
+                            String qrCodePath = qrCodeGenerator.generate(path, String.valueOf(event.getId()), mail);
+                            mailSender.sendMessage(mail, qrCodePath);
+                        });
+                    }
+                    case "payment.canceled" -> throw new PaymentException("Отказ от оплаты");
                 }
             }).start();
             return ResponseEntity.ok().build();
         } catch (Exception ex) {
-            throw new PaymentException("Ошибка оплаты");
+            paymentRepository.deleteById(Long.parseLong(paymentResponse.getObject().getMetadata().getLocalPaymentId()));
+            throw new PaymentException(ex.getMessage());
+
         }
     }
 
-    @PostMapping("startPay")
-    public ResponseEntity<?> startPay(@RequestBody List<PaymentOrder> paymentResponse) {
+    @PostMapping("startPay/{mail}")
+    public ResponseEntity<?> startPay(@RequestBody List<PaymentOrder> paymentResponse, @RequestBody String mail) {
         long finalCost = paymentResponse.stream()
                 .mapToLong(paymentOrder -> paymentOrder.getCount() * paymentOrder.getCost())
                 .sum();
@@ -85,6 +102,7 @@ public class PaymentController {
                 .events(eventEntities)
                 .cost(finalCost)
                 .paymentStatus(PaymentStatus.WAIT_FOR_PAY)
+                .mail(mail)
                 .build();
 
         PaymentEntity payment = paymentRepository.saveAndFlush(paymentEntity);
