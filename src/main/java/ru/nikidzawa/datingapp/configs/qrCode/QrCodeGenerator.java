@@ -13,13 +13,10 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Component
 public class QrCodeGenerator {
-    public String generate (String path, String eventId) {
-        UUID uuid = UUID.randomUUID();
-        String token = uuid.toString();
+    public String generate (String path, String eventId, String token) {
         String url = "https://thatgirloasis.ru/checkMemberStatus/" + eventId + "/" + token;
         String filePath = "QRCode-" + path + ".png";
         int size = 250;

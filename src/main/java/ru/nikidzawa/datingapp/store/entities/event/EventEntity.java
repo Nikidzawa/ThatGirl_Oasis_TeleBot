@@ -3,8 +3,6 @@ package ru.nikidzawa.datingapp.store.entities.event;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import ru.nikidzawa.datingapp.store.entities.siteAccount.SiteAccount;
-import ru.nikidzawa.datingapp.store.entities.user.UserEntity;
 
 import java.io.Serializable;
 import java.util.List;
@@ -61,5 +59,5 @@ public class EventEntity implements Serializable {
             joinColumns = @JoinColumn(name = "event_id"),
             inverseJoinColumns = @JoinColumn(name = "account_id")
     )
-    List<SiteAccount> members;
+    List<Token> tokens;
 }

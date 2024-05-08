@@ -6,24 +6,27 @@ import lombok.experimental.FieldDefaults;
 import org.apache.http.HttpResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.PaymentHelper;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.Payment;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.PaymentResponse;
-import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.PaymentHelper;
 import ru.nikidzawa.datingapp.api.internal.exceptions.NotFoundException;
 import ru.nikidzawa.datingapp.api.internal.exceptions.PaymentException;
 import ru.nikidzawa.datingapp.configs.mail.MailSender;
 import ru.nikidzawa.datingapp.configs.qrCode.QrCodeGenerator;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
+import ru.nikidzawa.datingapp.store.entities.event.Token;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentOrder;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentStatus;
 import ru.nikidzawa.datingapp.store.repositories.EventRepository;
 import ru.nikidzawa.datingapp.store.repositories.PaymentRepository;
+import ru.nikidzawa.datingapp.store.repositories.TokenRepository;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,6 +45,8 @@ public class PaymentController {
     MailSender mailSender;
 
     QrCodeGenerator qrCodeGenerator;
+
+    TokenRepository tokenRepository;
 
     @PostMapping("receivePay")
     public ResponseEntity<?> receivePay (@RequestBody PaymentResponse paymentResponse) {
@@ -63,9 +68,24 @@ public class PaymentController {
                                         .orElseThrow(() -> new PaymentException("Платёж не найден"));
                         List<EventEntity> eventEntities = paymentEntity.getEvents();
                         eventEntities.forEach(event -> {
-                            String path = paymentEntity.getId() + "-" + event.getId();
+                            String eventId = String.valueOf(event.getId());
+                            String path = paymentEntity.getId() + "-" + eventId;
                             String mail = paymentEntity.getMail();
-                            String qrCodePath = qrCodeGenerator.generate(path, String.valueOf(event.getId()), mail);
+
+                            UUID uuid = UUID.randomUUID();
+                            String token = uuid.toString();
+
+                            new Thread(() -> {
+                                Token tokenEntity = tokenRepository.saveAndFlush(
+                                        Token.builder()
+                                                .token(token)
+                                                .build()
+                                );
+                                event.getTokens().add(tokenEntity);
+                                eventRepository.saveAndFlush(event);
+                            }).start();
+
+                            String qrCodePath = qrCodeGenerator.generate(path, eventId, token);
                             mailSender.sendMessage(mail, qrCodePath);
                         });
                     }
@@ -76,12 +96,11 @@ public class PaymentController {
         } catch (Exception ex) {
             paymentRepository.deleteById(Long.parseLong(paymentResponse.getObject().getMetadata().getLocalPaymentId()));
             throw new PaymentException(ex.getMessage());
-
         }
     }
 
     @PostMapping("startPay/{mail}")
-    public ResponseEntity<?> startPay(@RequestBody List<PaymentOrder> paymentResponse, @RequestBody String mail) {
+    public ResponseEntity<?> startPay(@RequestBody List<PaymentOrder> paymentResponse, @PathVariable String mail) {
         long finalCost = paymentResponse.stream()
                 .mapToLong(paymentOrder -> paymentOrder.getCount() * paymentOrder.getCost())
                 .sum();

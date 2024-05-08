@@ -1,4 +1,4 @@
-package ru.nikidzawa.datingapp.store.entities.siteAccount;
+package ru.nikidzawa.datingapp.store.entities.event;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -14,10 +14,10 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class SiteAccount {
+public class Token {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    String mail;
+    String token;
 }

@@ -10,6 +10,6 @@ import java.util.Optional;
 
 @Repository
 public interface EventRepository extends JpaRepository<EventEntity, Long> {
-    @Query("SELECT e FROM EventEntity e JOIN e.members m WHERE e.id = :eventId AND m.mail = :mail")
-    Optional<EventEntity> checkRegister(@Param("eventId") Long eventId, @Param("mail") String mail);
+    @Query("SELECT e FROM EventEntity e JOIN e.tokens m WHERE e.id = :eventId AND m.token = :token")
+    Optional<EventEntity> checkRegister(@Param("eventId") Long eventId, @Param("mail") String token);
 }
