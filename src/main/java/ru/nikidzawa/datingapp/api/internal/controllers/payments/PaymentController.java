@@ -6,7 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.apache.http.HttpResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.PaymentHelper;
+import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.ExternalHttpSender;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.Payment;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.PaymentResponse;
 import ru.nikidzawa.datingapp.api.internal.exceptions.NotFoundException;
@@ -17,7 +17,6 @@ import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 import ru.nikidzawa.datingapp.store.entities.event.Token;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
 import ru.nikidzawa.datingapp.store.entities.payment.PaymentOrder;
-import ru.nikidzawa.datingapp.store.entities.payment.PaymentStatus;
 import ru.nikidzawa.datingapp.store.repositories.EventRepository;
 import ru.nikidzawa.datingapp.store.repositories.PaymentRepository;
 import ru.nikidzawa.datingapp.store.repositories.TokenRepository;
@@ -40,7 +39,7 @@ public class PaymentController {
 
     PaymentRepository paymentRepository;
 
-    PaymentHelper paymentHelper;
+    ExternalHttpSender externalHttpSender;
 
     MailSender mailSender;
 
@@ -56,7 +55,7 @@ public class PaymentController {
                 Payment payment = paymentResponse.getObject();
                 switch (status) {
                     case "payment.waiting_for_capture" -> {
-                        HttpResponse httpResponse = paymentHelper.successPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
+                        HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
                         int code = httpResponse.getStatusLine().getStatusCode();
                         if (!(code >= 200 && code < 300)) {
                             throw new PaymentException("Ошибка при подвтерждении платежа");
@@ -120,7 +119,6 @@ public class PaymentController {
         PaymentEntity paymentEntity = PaymentEntity.builder()
                 .events(eventEntities)
                 .cost(finalCost)
-                .paymentStatus(PaymentStatus.WAIT_FOR_PAY)
                 .mail(mail)
                 .build();
 
@@ -128,7 +126,7 @@ public class PaymentController {
         String localPaymentId = payment.getId().toString();
 
         try {
-            HttpResponse response = paymentHelper.sendHttpPay(finalCost, localPaymentId);
+            HttpResponse response = externalHttpSender.sendHttpPay(finalCost, localPaymentId);
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode >= 200 && statusCode < 300) {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));

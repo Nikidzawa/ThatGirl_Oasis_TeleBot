@@ -109,10 +109,10 @@ public class EventsController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("checkMemberStatus/{eventId}/{mail}")
+    @GetMapping("checkMemberStatus/{eventId}/{token}")
     public EventEntity checkMemberStatus (@PathVariable Long eventId,
-                                          @PathVariable String mail) {
-        return eventRepository.checkRegister(eventId, mail)
+                                          @PathVariable String token) {
+        return eventRepository.checkRegister(eventId, token)
                 .orElseThrow(() -> new NotFoundException("Пользователь не зарегистрирвоан на мероприятие"));
     }
 }

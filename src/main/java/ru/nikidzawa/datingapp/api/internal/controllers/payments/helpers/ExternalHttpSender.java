@@ -16,7 +16,7 @@ import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities
 import java.io.IOException;
 
 @Component
-public class PaymentHelper {
+public class ExternalHttpSender {
 
     @Autowired
     ShopData shopData;
@@ -69,5 +69,4 @@ public class PaymentHelper {
 
         return httpClient.execute(request);
     }
-
 }

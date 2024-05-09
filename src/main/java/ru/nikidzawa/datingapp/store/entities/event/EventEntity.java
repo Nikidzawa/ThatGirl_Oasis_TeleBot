@@ -1,5 +1,6 @@
 package ru.nikidzawa.datingapp.store.entities.event;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -59,5 +60,6 @@ public class EventEntity implements Serializable {
             joinColumns = @JoinColumn(name = "event_id"),
             inverseJoinColumns = @JoinColumn(name = "account_id")
     )
+    @JsonIgnore
     List<Token> tokens;
 }
