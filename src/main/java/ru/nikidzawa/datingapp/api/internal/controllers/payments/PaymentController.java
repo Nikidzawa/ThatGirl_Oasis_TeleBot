@@ -51,6 +51,16 @@ public class PaymentController {
 
     EventsController eventsController;
 
+    @GetMapping("test")
+    public ResponseEntity<?> app() {
+        UUID uuid = UUID.randomUUID();
+        String token = uuid.toString();
+
+        String qr = qrCodeGenerator.generate("123", "1", token);
+        mailSender.sendMessage("nikidzawa@mail.ru", qr);
+        return ResponseEntity.ok("Hello World");
+    }
+
     @PostMapping("receivePay")
     public ResponseEntity<?> receivePay (@RequestBody PaymentResponse paymentResponse) {
         try {

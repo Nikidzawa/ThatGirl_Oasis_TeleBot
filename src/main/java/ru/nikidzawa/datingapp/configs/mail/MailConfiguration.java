@@ -14,7 +14,7 @@ public class MailConfiguration {
         JavaMailSenderImpl javaMailSender = new JavaMailSenderImpl();
         javaMailSender.setHost("smtp.mail.ru");
         javaMailSender.setUsername("nikidzawa@mail.ru");
-        javaMailSender.setPassword("RekX99nscJZvHu76nDWw");
+        javaMailSender.setPassword("Qsijegi0x3HdEMszviJd");
         javaMailSender.setPort(465);
 
         Properties properties = javaMailSender.getJavaMailProperties();
