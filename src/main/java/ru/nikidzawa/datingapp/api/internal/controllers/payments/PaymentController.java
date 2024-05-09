@@ -1,11 +1,13 @@
 package ru.nikidzawa.datingapp.api.internal.controllers.payments;
 
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.apache.http.HttpResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.nikidzawa.datingapp.api.internal.controllers.events.EventsController;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.ExternalHttpSender;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.Payment;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.PaymentResponse;
@@ -47,6 +49,8 @@ public class PaymentController {
 
     TokenRepository tokenRepository;
 
+    EventsController eventsController;
+
     @PostMapping("receivePay")
     public ResponseEntity<?> receivePay (@RequestBody PaymentResponse paymentResponse) {
         try {
@@ -80,8 +84,7 @@ public class PaymentController {
                                                 .token(token)
                                                 .build()
                                 );
-                                event.getTokens().add(tokenEntity);
-                                eventRepository.saveAndFlush(event);
+                                eventsController.addTokenInEvent(tokenEntity, event);
                             }).start();
 
                             String qrCodePath = qrCodeGenerator.generate(path, eventId, token);

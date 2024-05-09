@@ -1,5 +1,6 @@
 package ru.nikidzawa.datingapp.api.internal.controllers.events;
 
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -9,10 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.nikidzawa.datingapp.api.internal.controllers.users.RolesController;
 import ru.nikidzawa.datingapp.api.internal.exceptions.NotFoundException;
-import ru.nikidzawa.datingapp.store.entities.event.EventCity;
-import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
-import ru.nikidzawa.datingapp.store.entities.event.EventImage;
-import ru.nikidzawa.datingapp.store.entities.event.EventType;
+import ru.nikidzawa.datingapp.store.entities.event.*;
 import ru.nikidzawa.datingapp.store.repositories.EventCityRepository;
 import ru.nikidzawa.datingapp.store.repositories.EventImageRepository;
 import ru.nikidzawa.datingapp.store.repositories.EventRepository;
@@ -114,5 +112,13 @@ public class EventsController {
                                           @PathVariable String token) {
         return eventRepository.checkRegister(eventId, token)
                 .orElseThrow(() -> new NotFoundException("Пользователь не зарегистрирвоан на мероприятие"));
+    }
+
+    @Transactional
+    public void addTokenInEvent (Token token, EventEntity eventEntity) {
+        List<Token> eventTokens = eventRepository.getTokensByEventId(eventEntity.getId());
+        eventTokens.add(token);
+        eventEntity.setTokens(eventTokens);
+        eventRepository.saveAndFlush(eventEntity);
     }
 }

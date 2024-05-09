@@ -24,7 +24,7 @@ public class PaymentEntity {
 
     PaymentStatus paymentStatus;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     List<EventEntity> events = new ArrayList<>();
 
     String mail;
