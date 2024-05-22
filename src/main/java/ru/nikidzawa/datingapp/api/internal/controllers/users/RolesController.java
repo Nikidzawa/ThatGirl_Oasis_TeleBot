@@ -24,12 +24,12 @@ public class RolesController {
         String status;
         try {
             status = botFunctions.getChatMember(userid).getStatus();
-            if (status.equals("administrator") || status.equals("creator")) {
-                return;
-            } else {
-                throw new Unauthorized("Недостаточно прав для запроса");
-            }
         } catch (Exception e) {
+            throw new Unauthorized("Недостаточно прав для запроса");
+        }
+        if (status.equals("administrator") || status.equals("creator")) {
+            return;
+        } else {
             throw new Unauthorized("Недостаточно прав для запроса");
         }
     }

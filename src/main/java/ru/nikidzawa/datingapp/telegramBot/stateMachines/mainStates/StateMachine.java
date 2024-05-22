@@ -212,12 +212,10 @@ public class StateMachine {
                 botFunctions.sendMessageAndKeyboard(userId, messages.getASK_CITY(), botFunctions.locationButton());
             }
 
-            new Thread(() -> {
-                cacheService.setState(userId, StateEnum.ASK_CITY);
-                UserEntity user = cacheService.getCachedUser(userId);
-                user.setName(message.getText());
-                cacheService.putCachedUser(userId, user);
-            }).start();
+            cacheService.setState(userId, StateEnum.ASK_CITY);
+            UserEntity user = cacheService.getCachedUser(userId);
+            user.setName(message.getText());
+            cacheService.putCachedUser(userId, user);
         }
     }
 
@@ -376,7 +374,8 @@ public class StateMachine {
                     cacheService.setState(userId, StateEnum.RESULT);
                 }
             } else {
-                cacheService.setState(userId, StateEnum.ASK_AVATAR);
+                if (hasBeenRegistered) {cacheService.setState(userId, StateEnum.EDIT_AVATAR);
+                } else cacheService.setState(userId, StateEnum.ASK_AVATAR);
             }
         }
     }
@@ -411,7 +410,8 @@ public class StateMachine {
                     cacheService.setState(userId, StateEnum.RESULT);
                 }
             } else {
-                cacheService.setState(userId, StateEnum.ASK_AVATAR);
+                if (hasBeenRegistered) {cacheService.setState(userId, StateEnum.EDIT_AVATAR);
+                } else cacheService.setState(userId, StateEnum.ASK_AVATAR);
             }
         }
     }

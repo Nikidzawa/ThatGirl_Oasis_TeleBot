@@ -1,6 +1,5 @@
 package ru.nikidzawa.datingapp.api.internal.controllers.payments;
 
-import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

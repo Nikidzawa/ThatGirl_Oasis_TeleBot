@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @ControllerAdvice
 public class ExceptionController {
     @ExceptionHandler(Unauthorized.class)
-    public ResponseEntity<ExceptionEntity> handleNotFoundException(Unauthorized ex) {
+    public ResponseEntity<ExceptionEntity> handleUnauthorizedException(Unauthorized ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ExceptionEntity.builder()
                         .code(HttpStatus.UNAUTHORIZED.value())
@@ -24,7 +24,7 @@ public class ExceptionController {
                         .build());
     }
     @ExceptionHandler(PaymentException.class)
-    public ResponseEntity<ExceptionEntity> handleNotFoundException(PaymentException ex) {
+    public ResponseEntity<ExceptionEntity> handlePaymentException(PaymentException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ExceptionEntity.builder()
                         .code(HttpStatus.SERVICE_UNAVAILABLE.value())
