@@ -32,7 +32,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     public String getBotUsername() {return "ThatGirl Oasis";}
 
     @Override
-    public String getBotToken() {return "7084686548:AAGqscCxZPaKXezJsKTp-iUihtH3Y-YWdGY";}
+    public String getBotToken() {return "6892584290:AAEqe_WDIf1oRBZW5kVOgg2OjIBPK9mPihA";}
 
     public BotFunctions botFunctions;
 
