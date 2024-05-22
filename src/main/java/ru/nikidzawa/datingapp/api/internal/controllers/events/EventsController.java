@@ -42,6 +42,15 @@ public class EventsController {
         return eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
     }
 
+    @GetMapping("{eventId}/images")
+    public List<EventImage> getEventImages (@PathVariable Long eventId) {
+        List<EventImage> eventImages = eventRepository.getEventImages(eventId);
+        if (eventImages.isEmpty()) {
+            throw new NotFoundException("У мероприятия нет фотографий");
+        }
+        return eventImages;
+    }
+
     @DeleteMapping("{eventId}/{userId}")
     public ResponseEntity<?> deleteEventById (@PathVariable Long eventId, @PathVariable Long userId) {
         rolesController.checkAdminStatus(userId);
