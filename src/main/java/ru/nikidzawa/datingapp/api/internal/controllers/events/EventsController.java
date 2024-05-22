@@ -37,18 +37,8 @@ public class EventsController {
     EventImageRepository eventImageRepository;
 
     @GetMapping("{eventId}")
-    @Cacheable(cacheNames = "event", key = "#eventId")
     public EventEntity getEventById (@PathVariable Long eventId) {
         return eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
-    }
-
-    @GetMapping("{eventId}/images")
-    public List<EventImage> getEventImages (@PathVariable Long eventId) {
-        List<EventImage> eventImages = eventRepository.getEventImages(eventId);
-        if (eventImages.isEmpty()) {
-            throw new NotFoundException("У мероприятия нет фотографий");
-        }
-        return eventImages;
     }
 
     @DeleteMapping("{eventId}/{userId}")
@@ -103,15 +93,17 @@ public class EventsController {
     @PatchMapping("setImages/{userId}")
     public ResponseEntity<?> setImages (@RequestBody EventEntity eventEntity, @PathVariable Long userId) {
         rolesController.checkAdminStatus(userId);
+
         EventImage mainImage = eventEntity.getMainImage();
         eventImageRepository.saveAndFlush(mainImage);
-        List<EventImage> otherImages = eventEntity.getEventImages();
 
+        List<EventImage> otherImages = eventEntity.getEventImages();
         if (otherImages != null) {
             for (EventImage eventImage : otherImages) {
                 eventImageRepository.saveAndFlush(eventImage);
             }
         }
+
         eventRepository.saveAndFlush(eventEntity);
         return ResponseEntity.ok().build();
     }

@@ -51,8 +51,7 @@ public class EventEntity implements Serializable {
     @ManyToOne(fetch = FetchType.EAGER)
     EventCity city;
 
-    @JsonIgnore
-    @OneToMany(fetch = FetchType.LAZY)
+    @OneToMany(fetch = FetchType.EAGER)
     List<EventImage> eventImages;
 
     @JsonIgnore
