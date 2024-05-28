@@ -143,8 +143,7 @@ public class PaymentController {
                 .build();
 
         PaymentEntity payment = paymentRepository.saveAndFlush(paymentEntity);
-        UUID uuid = UUID.randomUUID();
-        String localPaymentId = payment.getId().toString() + uuid;
+        String localPaymentId = payment.getId().toString();
 
         try {
             HttpResponse response = externalHttpSender.sendHttpPay(finalCost, localPaymentId);
