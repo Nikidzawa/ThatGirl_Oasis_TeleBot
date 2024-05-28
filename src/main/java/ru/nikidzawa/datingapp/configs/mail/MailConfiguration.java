@@ -15,10 +15,14 @@ public class MailConfiguration {
         javaMailSender.setHost("smtp.mail.ru");
         javaMailSender.setUsername("thatgirl-oasis@mail.ru");
         javaMailSender.setPassword("x9TusSmxBgkZM0ckg1SS");
-        javaMailSender.setPort(465);
+        javaMailSender.setPort(587);
 
         Properties properties = javaMailSender.getJavaMailProperties();
-        properties.setProperty("mail.transport.protocol", "smtps");
+        properties.put("mail.transport.protocol", "smtp");
+        properties.put("mail.smtp.auth", "true");
+        properties.put("mail.smtp.starttls.enable", "true");
+        properties.put("mail.smtp.starttls.required", "true");
+        properties.put("mail.debug", "true");
         return javaMailSender;
     }
 }

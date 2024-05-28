@@ -32,6 +32,17 @@ public class ExternalHttpSender {
         return httpClient.execute(request);
     }
 
+    @SneakyThrows
+    public HttpResponse cancelPay (String paymentId, String localPaymentId) {
+        String url = "https://api.yookassa.ru/v3/payments/" + paymentId + "/" + "cancel";
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+        HttpPost request = new HttpPost(url);
+        request.addHeader("content-type", "application/json");
+        request.addHeader("Idempotence-Key", localPaymentId);
+        request.addHeader("Authorization", "Basic " + shopData.getEncodingData());
+        return httpClient.execute(request);
+    }
+
     public HttpResponse sendHttpPay(long finalCost, String localPaymentId) throws IOException {
         String apiUrl = "https://api.yookassa.ru/v3/payments";
         CloseableHttpClient httpClient = HttpClients.createDefault();

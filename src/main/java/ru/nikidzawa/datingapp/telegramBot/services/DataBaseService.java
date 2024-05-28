@@ -82,9 +82,6 @@ public class DataBaseService {
         int age = myProfile.getAge();
         return userRepository.findAllOrderByDistance(myProfile.getId(), excludedUserIds, age-2, age+2, myProfile.getLongitude(), myProfile.getLatitude());
     }
-    public List<UserEntity> getAllUsers() {
-        return userRepository.findAll();
-    }
 
     public void saveError (ErrorEntity errorEntity) {
         errorRepository.saveAndFlush(errorEntity);

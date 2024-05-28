@@ -20,7 +20,7 @@ public class MailSender {
         MimeMessage message = javaMailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
-        helper.setFrom("nikidzawa@mail.ru");
+        helper.setFrom("thatgirl-oasis@mail.ru");
         helper.setTo(mail);
         helper.setSubject("Билет на мероприятие");
         helper.setText("Привет, здесь ваш билет на мероприятие!");

@@ -3,6 +3,8 @@ package ru.nikidzawa.datingapp.api.internal.controllers.payments;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.log4j.Log4j;
+import lombok.extern.log4j.Log4j2;
 import org.apache.http.HttpResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 @CrossOrigin
 @RequestMapping("api/payment/")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Log4j2
 public class PaymentController {
 
     EventRepository eventRepository;
@@ -68,39 +71,44 @@ public class PaymentController {
                 Payment payment = paymentResponse.getObject();
                 switch (status) {
                     case "payment.waiting_for_capture" -> {
-                        HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
-                        int code = httpResponse.getStatusLine().getStatusCode();
-                        if (!(code >= 200 && code < 300)) {
-                            throw new PaymentException("Ошибка при подвтерждении платежа");
-                        }
-                    }
-                    case "payment.succeeded" -> {
-                        PaymentEntity paymentEntity =
-                                paymentRepository.findById(Long.valueOf(payment.getMetadata().getLocalPaymentId()))
-                                        .orElseThrow(() -> new PaymentException("Платёж не найден"));
-                        List<EventEntity> eventEntities = paymentEntity.getEvents();
-                        eventEntities.forEach(event -> {
-                            String eventId = String.valueOf(event.getId());
-                            String path = paymentEntity.getId() + "-" + eventId;
-                            String mail = paymentEntity.getMail();
+                        try {
+                            PaymentEntity paymentEntity =
+                                    paymentRepository.findById(Long.valueOf(payment.getMetadata().getLocalPaymentId()))
+                                            .orElseThrow(() -> new PaymentException("Платёж не найден"));
 
-                            UUID uuid = UUID.randomUUID();
-                            String token = uuid.toString();
+                            List<EventEntity> eventEntities = paymentEntity.getEvents();
+                            eventEntities.forEach(event -> {
+                                String eventId = String.valueOf(event.getId());
+                                String path = paymentEntity.getId() + "-" + eventId;
+                                String mail = paymentEntity.getMail();
 
-                            new Thread(() -> {
+                                UUID uuid = UUID.randomUUID();
+                                String token = uuid.toString();
+
                                 Token tokenEntity = tokenRepository.saveAndFlush(
                                         Token.builder()
                                                 .token(token)
                                                 .build()
                                 );
                                 eventsController.addTokenInEvent(tokenEntity, event);
-                            }).start();
 
-                            String qrCodePath = qrCodeGenerator.generate(path, eventId, token);
-                            mailSender.sendMessage(mail, qrCodePath);
-                        });
+                                String qrCodePath = qrCodeGenerator.generate(path, eventId, token);
+                                mailSender.sendMessage(mail, qrCodePath);
+                                log.debug("QR код отправлен на почту");
+
+                                HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
+                                int code = httpResponse.getStatusLine().getStatusCode();
+                                if (!(code >= 200 && code < 300)) {
+                                    throw new PaymentException("Ошибка при подвтерждении платежа");
+                                }
+                            });
+                        } catch (Exception ex) {
+                            externalHttpSender.cancelPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
+                            throw new RuntimeException(ex);
+                        }
                     }
-                    case "payment.canceled" -> throw new PaymentException("Отказ от оплаты");
+                    case "payment.succeeded" -> log.debug("Оплата подтверждена");
+                    case "payment.canceled" -> log.debug("Оплата отменена");
                 }
             }).start();
             return ResponseEntity.ok().build();
@@ -135,7 +143,8 @@ public class PaymentController {
                 .build();
 
         PaymentEntity payment = paymentRepository.saveAndFlush(paymentEntity);
-        String localPaymentId = payment.getId().toString();
+        UUID uuid = UUID.randomUUID();
+        String localPaymentId = payment.getId().toString() + uuid;
 
         try {
             HttpResponse response = externalHttpSender.sendHttpPay(finalCost, localPaymentId);
@@ -149,11 +158,13 @@ public class PaymentController {
                 }
                 return ResponseEntity.ok(result.toString());
             } else {
+                System.out.println("Payment error: " + statusCode);
                 paymentRepository.delete(payment);
                 return ResponseEntity.status(statusCode).build();
             }
         } catch (Exception ex) {
             paymentRepository.delete(payment);
+            System.out.println("Payment error: " + ex.getMessage());
             return ResponseEntity.status(500).body("Internal server error");
         }
     }
