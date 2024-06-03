@@ -11,13 +11,12 @@ import org.springframework.web.bind.annotation.*;
 import ru.nikidzawa.datingapp.api.internal.controllers.users.RolesController;
 import ru.nikidzawa.datingapp.api.internal.exceptions.NotFoundException;
 import ru.nikidzawa.datingapp.store.entities.event.*;
-import ru.nikidzawa.datingapp.store.repositories.EventCityRepository;
-import ru.nikidzawa.datingapp.store.repositories.EventImageRepository;
-import ru.nikidzawa.datingapp.store.repositories.EventRepository;
-import ru.nikidzawa.datingapp.store.repositories.EventTypeRepository;
+import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
+import ru.nikidzawa.datingapp.store.repositories.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -35,6 +34,8 @@ public class EventsController {
     RolesController rolesController;
 
     EventImageRepository eventImageRepository;
+
+    PaymentRepository paymentRepository;
 
     @GetMapping("{eventId}")
     public EventEntity getEventById (@PathVariable Long eventId) {
@@ -56,6 +57,8 @@ public class EventsController {
         eventEntities2.remove(eventEntity);
         eventType.setEventEntities(eventEntities2);
         eventTypeRepository.saveAndFlush(eventType);
+
+        paymentRepository.deleteAll(paymentRepository.getAllPaymentsByEventId(eventId));
 
         eventRepository.delete(eventEntity);
         return ResponseEntity.ok().build();
@@ -82,11 +85,46 @@ public class EventsController {
         return savedEventEntity;
     }
 
-    @PatchMapping("changeFavouriteStatus/{eventId}/{userId}")
-    public EventEntity setOrRemoveEventFavorite (@PathVariable Long eventId, @PathVariable Long userId) {
+    @PatchMapping("{userId}/{previousEventTypeId}/{previousCityId}")
+    public EventEntity updateEvent (@RequestBody EventEntity eventEntity,
+                                          @PathVariable Long userId,
+                                          @PathVariable Long previousCityId,
+                                          @PathVariable Long previousEventTypeId) {
         rolesController.checkAdminStatus(userId);
-        EventEntity eventEntity = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
-        eventEntity.setFavorite(!eventEntity.isFavorite());
+
+        Long actualEventTypeId = eventEntity.getEventType().getId();
+        Long actualEventCityId = eventEntity.getCity().getId();
+
+        if (!Objects.equals(actualEventTypeId, previousEventTypeId)) {
+            EventType previousEventType = eventTypeRepository.findById(previousEventTypeId)
+                    .orElseThrow(() -> new NotFoundException("Предыдущий тип мероприятия не найден"));
+            List<EventEntity> eventEntities = eventTypeRepository.findEventEntitiesByEventTypeId(previousEventTypeId);
+            eventEntities.remove(eventEntity);
+            previousEventType.setEventEntities(eventEntities);
+            eventTypeRepository.saveAndFlush(previousEventType);
+
+            EventType actualEventType = eventEntity.getEventType();
+            List<EventEntity> actualEventTypeEntities = eventTypeRepository.findEventEntitiesByEventTypeId(actualEventTypeId);
+            actualEventTypeEntities.add(eventEntity);
+            actualEventType.setEventEntities(actualEventTypeEntities);
+            eventTypeRepository.saveAndFlush(actualEventType);
+        }
+
+        if (!Objects.equals(actualEventCityId, previousCityId)) {
+            EventCity previousEventCity = eventCityRepository.findById(previousCityId)
+                    .orElseThrow(() -> new NotFoundException("Предыдущий тип мероприятия не найден"));
+            List<EventEntity> eventEntities = eventCityRepository.findEventEntitiesByCityId(previousCityId);
+            eventEntities.remove(eventEntity);
+            previousEventCity.setEventEntities(eventEntities);
+            eventCityRepository.saveAndFlush(previousEventCity);
+
+            EventCity actualEventCity = eventEntity.getCity();
+            List<EventEntity> actualEventCityEvents = eventCityRepository.findEventEntitiesByCityId(actualEventCityId);
+            actualEventCityEvents.add(eventEntity);
+            actualEventCity.setEventEntities(actualEventCityEvents);
+            eventCityRepository.saveAndFlush(actualEventCity);
+        }
+
         return eventRepository.saveAndFlush(eventEntity);
     }
 
