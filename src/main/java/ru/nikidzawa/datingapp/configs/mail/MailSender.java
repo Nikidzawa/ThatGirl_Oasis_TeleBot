@@ -32,7 +32,7 @@ public class MailSender {
         javaMailSender.send(message);
     }
 
-    public void sendTextMessage(String messageText, String mail) {
+    public void sendTextMessage(String mail, String messageText) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom("thatgirl-oasis@mail.ru");
         message.setTo(mail);
