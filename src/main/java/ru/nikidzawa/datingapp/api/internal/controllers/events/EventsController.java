@@ -87,9 +87,9 @@ public class EventsController {
 
     @PatchMapping("{userId}/{previousEventTypeId}/{previousCityId}")
     public EventEntity updateEvent (@RequestBody EventEntity eventEntity,
-                                          @PathVariable Long userId,
-                                          @PathVariable Long previousCityId,
-                                          @PathVariable Long previousEventTypeId) {
+                                    @PathVariable Long userId,
+                                    @PathVariable Long previousCityId,
+                                    @PathVariable Long previousEventTypeId) {
         rolesController.checkAdminStatus(userId);
 
         Long actualEventTypeId = eventEntity.getEventType().getId();

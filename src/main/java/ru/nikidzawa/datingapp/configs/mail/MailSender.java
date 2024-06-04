@@ -4,6 +4,7 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,15 @@ public class MailSender {
         FileSystemResource file = new FileSystemResource(new File(imagePath));
         helper.addAttachment("Ticket.png", file);
 
+        javaMailSender.send(message);
+    }
+
+    public void sendTextMessage(String messageText, String mail) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom("thatgirl-oasis@mail.ru");
+        message.setTo(mail);
+        message.setSubject("Код подтверждения ThatGirl Oasis");
+        message.setText("Ваш код подтверждения " + messageText);
         javaMailSender.send(message);
     }
 }

@@ -31,4 +31,12 @@ public class ExceptionController {
                         .message(ex.getMessage())
                         .build());
     }
+    @ExceptionHandler(MailException.class)
+    public ResponseEntity<ExceptionEntity> handlePaymentException(MailException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ExceptionEntity.builder()
+                        .code(HttpStatus.BAD_REQUEST.value())
+                        .message(ex.getMessage())
+                        .build());
+    }
 }

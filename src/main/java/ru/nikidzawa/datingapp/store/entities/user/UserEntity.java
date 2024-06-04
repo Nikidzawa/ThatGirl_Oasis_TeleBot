@@ -51,6 +51,8 @@ public class UserEntity implements Serializable {
 
     boolean isBanned = false;
 
+    String email;
+
     @OneToMany(fetch = FetchType.EAGER)
     List<UserAvatar> userAvatars;
 
