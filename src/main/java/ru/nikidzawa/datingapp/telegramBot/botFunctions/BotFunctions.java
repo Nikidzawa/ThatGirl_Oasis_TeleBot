@@ -458,7 +458,7 @@ public class BotFunctions {
 
     @SneakyThrows
     public ChatMember getChatMember (Long userId) {
-        return telegramBot.execute(new GetChatMember("@nikidzawa_group", userId));
+        return telegramBot.execute(new GetChatMember("@That_Girl_Oasis", userId));
     }
 
     private static String formatDistance(double distance) {

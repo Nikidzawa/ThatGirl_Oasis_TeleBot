@@ -1287,7 +1287,7 @@ public class StateMachine {
 
     public void showNextUser(Long userId, UserEntity userEntity) {
         List<Long> excludedUserIds = cacheService.getExcludedUserIds(userId);
-        List<UserEntity> recommendations = dataBaseService.getRecomendation(userEntity, excludedUserIds);
+        List<UserEntity> recommendations = dataBaseService.getRecommendation(userEntity, excludedUserIds);
         if (recommendations.isEmpty()) {
             botFunctions.sendMessageAndRemoveKeyboard(userId, "Вы посмотрели все рекомендации, возвращаемся в меню");
             goToMenu(userId, userEntity);

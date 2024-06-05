@@ -3,7 +3,6 @@ package ru.nikidzawa.datingapp.api.internal.controllers.payments;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.log4j.Log4j;
 import lombok.extern.log4j.Log4j2;
 import org.apache.http.HttpResponse;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +24,11 @@ import ru.nikidzawa.datingapp.store.repositories.PaymentRepository;
 import ru.nikidzawa.datingapp.store.repositories.TokenRepository;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,16 +55,6 @@ public class PaymentController {
     TokenRepository tokenRepository;
 
     EventsController eventsController;
-
-    @GetMapping("test")
-    public ResponseEntity<?> app() {
-        UUID uuid = UUID.randomUUID();
-        String token = uuid.toString();
-
-        String qr = qrCodeGenerator.generate("123", "1", token);
-        mailSender.sendMessage("nikidzawa@mail.ru", qr);
-        return ResponseEntity.ok("Hello World");
-    }
 
     @PostMapping("receivePay")
     public ResponseEntity<?> receivePay (@RequestBody PaymentResponse paymentResponse) {
@@ -93,8 +86,18 @@ public class PaymentController {
                                 eventsController.addTokenInEvent(tokenEntity, event);
 
                                 String qrCodePath = qrCodeGenerator.generate(path, eventId, token);
-                                mailSender.sendMessage(mail, qrCodePath);
-                                log.debug("QR код отправлен на почту");
+                                try {
+                                    mailSender.sendMessage(mail, qrCodePath, event);
+                                    System.out.println("QR код отправлен на почту");
+                                } finally {
+                                    Path pathToDelete = Paths.get(qrCodePath);
+                                    try {
+                                        Files.delete(pathToDelete);
+                                        System.out.println("QR код удален: " + qrCodePath);
+                                    } catch (IOException e) {
+                                        System.out.println("Ошибка удаления файла: " + qrCodePath + "\n" + e);
+                                    }
+                                }
 
                                 HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
                                 int code = httpResponse.getStatusLine().getStatusCode();
@@ -107,8 +110,8 @@ public class PaymentController {
                             throw new RuntimeException(ex);
                         }
                     }
-                    case "payment.succeeded" -> log.debug("Оплата подтверждена");
-                    case "payment.canceled" -> log.debug("Оплата отменена");
+                    case "payment.succeeded" -> log.info("Оплата подтверждена");
+                    case "payment.canceled" -> log.info("Оплата отменена");
                 }
             }).start();
             return ResponseEntity.ok().build();

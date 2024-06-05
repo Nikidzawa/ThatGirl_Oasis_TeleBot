@@ -8,6 +8,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
+import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
 
 import java.io.File;
 
@@ -17,14 +18,20 @@ public class MailSender {
     private JavaMailSender javaMailSender;
 
     @SneakyThrows
-    public void sendMessage(String mail, String imagePath) {
+    public void sendMessage(String mail, String imagePath, EventEntity eventEntity) {
         MimeMessage message = javaMailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
         helper.setFrom("thatgirl-oasis@mail.ru");
         helper.setTo(mail);
-        helper.setSubject("Билет на мероприятие");
-        helper.setText("Привет, здесь ваш билет на мероприятие!");
+        helper.setSubject("Билет на мероприятие ThatGirl Oasis");
+        helper.setText("Вы приобрели билет на мероприятие " + eventEntity.getName() +
+                ", которое начнётся " + eventEntity.getDate() + " в " + eventEntity.getTime() + " по мск" +
+                "\n\nДля участия, покажите этот qr-код организатору на месте проведения мероприятия - " +
+                eventEntity.getCity() + " " + eventEntity.getAddress() +
+                "\nКонтактный номер телефона организатора мероприятия - " + eventEntity.getContactPhone() +
+                "\nСтраница мероприятия - https://thatgirloasis.ru/events/" + eventEntity.getId() +
+                "\n\nКоманда ThatGirl Oasis желает вам хорошо провести время!)");
 
         FileSystemResource file = new FileSystemResource(new File(imagePath));
         helper.addAttachment("Ticket.png", file);
