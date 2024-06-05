@@ -5,7 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import ru.nikidzawa.datingapp.store.entities.event.EventEntity;
-import ru.nikidzawa.datingapp.store.entities.event.EventImage;
 import ru.nikidzawa.datingapp.store.entities.event.Token;
 
 import java.util.List;

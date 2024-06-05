@@ -5,13 +5,11 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.nikidzawa.datingapp.api.internal.controllers.users.RolesController;
 import ru.nikidzawa.datingapp.api.internal.exceptions.NotFoundException;
 import ru.nikidzawa.datingapp.store.entities.event.*;
-import ru.nikidzawa.datingapp.store.entities.payment.PaymentEntity;
 import ru.nikidzawa.datingapp.store.repositories.*;
 
 import java.util.ArrayList;

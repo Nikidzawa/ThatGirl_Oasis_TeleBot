@@ -88,25 +88,25 @@ public class PaymentController {
                                 String qrCodePath = qrCodeGenerator.generate(path, eventId, token);
                                 try {
                                     mailSender.sendMessage(mail, qrCodePath, event);
-                                    System.out.println("QR код отправлен на почту");
+                                    log.info("QR код отправлен на почту");
                                 } finally {
                                     Path pathToDelete = Paths.get(qrCodePath);
                                     try {
                                         Files.delete(pathToDelete);
-                                        System.out.println("QR код удален: " + qrCodePath);
+                                        log.info("QR код удален: {}", qrCodePath);
                                     } catch (IOException e) {
-                                        System.out.println("Ошибка удаления файла: " + qrCodePath + "\n" + e);
+                                        log.error("Ошибка удаления QR: {}\n{}", qrCodePath, e);
                                     }
                                 }
 
-                                HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
+                                HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getOperationId());
                                 int code = httpResponse.getStatusLine().getStatusCode();
                                 if (!(code >= 200 && code < 300)) {
-                                    throw new PaymentException("Ошибка при подвтерждении платежа");
+                                    throw new PaymentException("Ошибка при подтверждении платежа");
                                 }
                             });
                         } catch (Exception ex) {
-                            externalHttpSender.cancelPay(payment.getId(), payment.getMetadata().getLocalPaymentId());
+                            externalHttpSender.cancelPay(payment.getId(), payment.getMetadata().getOperationId());
                             throw new RuntimeException(ex);
                         }
                     }
@@ -147,9 +147,9 @@ public class PaymentController {
 
         PaymentEntity payment = paymentRepository.saveAndFlush(paymentEntity);
         String localPaymentId = payment.getId().toString();
-
+        String operationId = localPaymentId + "@" + UUID.randomUUID();
         try {
-            HttpResponse response = externalHttpSender.sendHttpPay(finalCost, localPaymentId);
+            HttpResponse response = externalHttpSender.sendHttpPay(finalCost, localPaymentId, operationId);
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode >= 200 && statusCode < 300) {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));

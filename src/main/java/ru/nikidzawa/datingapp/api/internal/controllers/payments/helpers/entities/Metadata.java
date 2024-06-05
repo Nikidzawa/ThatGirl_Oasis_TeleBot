@@ -9,4 +9,5 @@ import lombok.*;
 @AllArgsConstructor
 public class Metadata {
     private String localPaymentId;
+    private String operationId;
 }

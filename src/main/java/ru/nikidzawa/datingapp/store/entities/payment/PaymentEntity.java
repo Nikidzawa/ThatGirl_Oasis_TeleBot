@@ -22,8 +22,6 @@ public class PaymentEntity {
 
     Long cost;
 
-    PaymentStatus paymentStatus;
-
     @ManyToMany(fetch = FetchType.EAGER)
     List<EventEntity> events = new ArrayList<>();
 

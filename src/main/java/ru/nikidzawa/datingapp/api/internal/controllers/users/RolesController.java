@@ -27,9 +27,7 @@ public class RolesController {
         } catch (Exception e) {
             throw new Unauthorized("Недостаточно прав для запроса");
         }
-        if (status.equals("administrator") || status.equals("creator")) {
-            return;
-        } else {
+        if (!status.equals("administrator") && !status.equals("creator")) {
             throw new Unauthorized("Недостаточно прав для запроса");
         }
     }

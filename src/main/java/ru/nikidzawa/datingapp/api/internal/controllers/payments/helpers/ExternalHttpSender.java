@@ -1,14 +1,16 @@
 package ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.experimental.FieldDefaults;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.Metadata;
 import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities.SendPay;
@@ -16,34 +18,35 @@ import ru.nikidzawa.datingapp.api.internal.controllers.payments.helpers.entities
 import java.io.IOException;
 
 @Component
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class ExternalHttpSender {
 
-    @Autowired
     ShopData shopData;
 
     @SneakyThrows
-    public HttpResponse successPay (String paymentId, String localPaymentId) {
+    public HttpResponse successPay (String paymentId, String operationId) {
         String url = "https://api.yookassa.ru/v3/payments/" + paymentId + "/" + "capture";
         CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpPost request = new HttpPost(url);
         request.addHeader("content-type", "application/json");
-        request.addHeader("Idempotence-Key", localPaymentId);
+        request.addHeader("Idempotence-Key", operationId);
         request.addHeader("Authorization", "Basic " + shopData.getEncodingData());
         return httpClient.execute(request);
     }
 
     @SneakyThrows
-    public HttpResponse cancelPay (String paymentId, String localPaymentId) {
+    public void cancelPay (String paymentId, String operationId) {
         String url = "https://api.yookassa.ru/v3/payments/" + paymentId + "/" + "cancel";
         CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpPost request = new HttpPost(url);
         request.addHeader("content-type", "application/json");
-        request.addHeader("Idempotence-Key", localPaymentId);
+        request.addHeader("Idempotence-Key", operationId);
         request.addHeader("Authorization", "Basic " + shopData.getEncodingData());
-        return httpClient.execute(request);
+        httpClient.execute(request);
     }
 
-    public HttpResponse sendHttpPay(long finalCost, String localPaymentId) throws IOException {
+    public HttpResponse sendHttpPay(long finalCost, String localPaymentId, String operationId) throws IOException {
         String apiUrl = "https://api.yookassa.ru/v3/payments";
         CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpPost request = new HttpPost(apiUrl);
@@ -65,6 +68,7 @@ public class ExternalHttpSender {
         );
         sendPay.setMetadata(Metadata.builder()
                 .localPaymentId(localPaymentId)
+                        .operationId(operationId)
                 .build());
         sendPay.setDescription("Заказ №" + localPaymentId);
 
