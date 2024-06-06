@@ -100,7 +100,6 @@ public class PaymentController {
                                     }
                                 }
                             });
-
                             HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getOperationId());
                             int code = httpResponse.getStatusLine().getStatusCode();
                             if (!(code >= 200 && code < 300)) {
@@ -153,7 +152,13 @@ public class PaymentController {
             HttpResponse response = externalHttpSender.sendHttpPay(finalCost, localPaymentId, operationId);
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode >= 200 && statusCode < 300) {
-                return ResponseEntity.ok().build();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+                StringBuilder result = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    result.append(line);
+                }
+                return ResponseEntity.ok(result.toString());
             } else {
                 System.out.println("Payment error: " + statusCode);
                 paymentRepository.delete(payment);
