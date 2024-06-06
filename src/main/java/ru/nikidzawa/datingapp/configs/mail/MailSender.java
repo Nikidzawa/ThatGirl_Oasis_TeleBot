@@ -29,13 +29,15 @@ public class MailSender {
         helper.setFrom("thatgirl-oasis@mail.ru");
         helper.setTo(mail);
         helper.setSubject("Билет на мероприятие ThatGirl Oasis");
-        helper.setText("Вы приобрели билет на мероприятие " + eventEntity.getName() +
-                ", которое начнётся " + eventEntity.getDate() + " в " + eventEntity.getTime() + " по мск" +
-                "\n\nДля участия, покажите этот qr-код организатору на месте проведения мероприятия - " +
-                eventEntity.getCity().getName() + " " + eventEntity.getAddress() +
+        helper.setText(
+                "Вы приобрели билет на мероприятие - \"" + eventEntity.getName() +
+                "\", которое начнётся " + eventEntity.getDate() + " в " + eventEntity.getTime() + " по мск" +
+                "\n\nДля участия, покажите прикреплённый QR-код организатору на месте проведения мероприятия - " +
+                eventEntity.getCity().getName() + ", " + eventEntity.getAddress() +
                 "\n\nКонтактный номер телефона организатора мероприятия - " + eventEntity.getContactPhone() +
                 "\nСтраница мероприятия - https://thatgirloasis.ru/events/" + eventEntity.getId() +
-                "\n\nКоманда ThatGirl Oasis желает вам хорошо провести время!)");
+                "\n\nКоманда ThatGirl Oasis желает вам хорошо провести время!)"
+        );
 
         FileSystemResource file = new FileSystemResource(new File(imagePath));
         helper.addAttachment("Ticket.png", file);

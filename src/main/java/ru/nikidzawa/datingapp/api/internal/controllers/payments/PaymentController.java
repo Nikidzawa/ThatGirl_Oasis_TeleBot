@@ -70,6 +70,7 @@ public class PaymentController {
                                             .orElseThrow(() -> new PaymentException("Платёж не найден"));
 
                             List<EventEntity> eventEntities = paymentEntity.getEvents();
+                            log.info("Размер массива мероприятий - {}", eventEntities.size());
                             eventEntities.forEach(event -> {
                                 String eventId = String.valueOf(event.getId());
                                 String path = paymentEntity.getId() + "-" + eventId;
@@ -98,13 +99,13 @@ public class PaymentController {
                                         log.error("Ошибка удаления QR: {}\n{}", qrCodePath, e);
                                     }
                                 }
-
-                                HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getOperationId());
-                                int code = httpResponse.getStatusLine().getStatusCode();
-                                if (!(code >= 200 && code < 300)) {
-                                    throw new PaymentException("Ошибка при подтверждении платежа");
-                                }
                             });
+
+                            HttpResponse httpResponse = externalHttpSender.successPay(payment.getId(), payment.getMetadata().getOperationId());
+                            int code = httpResponse.getStatusLine().getStatusCode();
+                            if (!(code >= 200 && code < 300)) {
+                                throw new PaymentException("Ошибка при подтверждении платежа");
+                            }
                         } catch (Exception ex) {
                             externalHttpSender.cancelPay(payment.getId(), payment.getMetadata().getOperationId());
                             throw new RuntimeException(ex);
@@ -152,13 +153,7 @@ public class PaymentController {
             HttpResponse response = externalHttpSender.sendHttpPay(finalCost, localPaymentId, operationId);
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode >= 200 && statusCode < 300) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-                StringBuilder result = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    result.append(line);
-                }
-                return ResponseEntity.ok(result.toString());
+                return ResponseEntity.ok().build();
             } else {
                 System.out.println("Payment error: " + statusCode);
                 paymentRepository.delete(payment);
