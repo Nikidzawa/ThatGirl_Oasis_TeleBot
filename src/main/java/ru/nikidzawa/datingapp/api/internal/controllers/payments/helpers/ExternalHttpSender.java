@@ -76,7 +76,7 @@ public class ExternalHttpSender {
         String json = objectMapper.writeValueAsString(sendPay);
 
         request.addHeader("content-type", "application/json");
-        request.addHeader("Idempotence-Key", localPaymentId);
+        request.addHeader("Idempotence-Key", operationId);
         request.addHeader("Authorization", "Basic " + shopData.getEncodingData());
 
         StringEntity params = new StringEntity(json, ContentType.APPLICATION_JSON);

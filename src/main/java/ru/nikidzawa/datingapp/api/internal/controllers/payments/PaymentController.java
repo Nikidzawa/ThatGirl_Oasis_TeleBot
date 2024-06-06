@@ -29,9 +29,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -70,7 +68,6 @@ public class PaymentController {
                                             .orElseThrow(() -> new PaymentException("Платёж не найден"));
 
                             List<EventEntity> eventEntities = paymentEntity.getEvents();
-                            log.info("Размер массива мероприятий - {}", eventEntities.size());
                             eventEntities.forEach(event -> {
                                 String eventId = String.valueOf(event.getId());
                                 String path = paymentEntity.getId() + "-" + eventId;
@@ -127,20 +124,16 @@ public class PaymentController {
                 .mapToLong(paymentOrder -> paymentOrder.getCount() * paymentOrder.getCost())
                 .sum();
 
-        List<EventEntity> eventEntities = paymentResponse.stream()
-                .map(paymentOrder -> {
-                    Long eventId = paymentOrder.getId();
-                    Optional<EventEntity> eventEntity = eventRepository.findById(eventId);
-                    if (eventEntity.isPresent()) {
-                        return eventEntity.get();
-                    } else {
-                        throw new NotFoundException("Событие с id = " + eventId + " не найдено. Оплата отменена");
-                    }
-                })
-                .collect(Collectors.toList());
+        List<EventEntity> finalEventList = paymentResponse.stream()
+                .flatMap(paymentOrder -> {
+                    EventEntity eventEntity = eventRepository.findById(paymentOrder.getId())
+                            .orElseThrow(() -> new NotFoundException("Событие с id = " + paymentOrder.getId() + " не найдено. Оплата отменена"));
+                    return Collections.nCopies(paymentOrder.getCount(), eventEntity).stream();
+                }).collect(Collectors.toList());
+
 
         PaymentEntity paymentEntity = PaymentEntity.builder()
-                .events(eventEntities)
+                .events(finalEventList)
                 .cost(finalCost)
                 .mail(mail)
                 .build();
@@ -160,13 +153,13 @@ public class PaymentController {
                 }
                 return ResponseEntity.ok(result.toString());
             } else {
-                System.out.println("Payment error: " + statusCode);
+                log.error("Payment error: {}", statusCode);
                 paymentRepository.delete(payment);
                 return ResponseEntity.status(statusCode).build();
             }
         } catch (Exception ex) {
             paymentRepository.delete(payment);
-            System.out.println("Payment error: " + ex.getMessage());
+            log.error("Payment error: {}", ex.getMessage());
             return ResponseEntity.status(500).body("Internal server error");
         }
     }
