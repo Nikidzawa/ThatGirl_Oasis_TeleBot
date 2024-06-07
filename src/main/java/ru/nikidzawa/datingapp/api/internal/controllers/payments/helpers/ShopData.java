@@ -11,8 +11,8 @@ public class ShopData {
     private final String encodingData;
 
     public ShopData () {
-        String shopId = "377347";
-        String apiKey = "test_SxUjBzknf1nAyjUVLL8nODeg6c0G7LhKVsCxnYfYCa8";
+        String shopId = "364431";
+        String apiKey = "live_YsC1w_ZPG0cA986zbIhXT-koERIK71-zz1FdH9rFs_M";
         encodingData = Base64.getEncoder().encodeToString((shopId + ":" + apiKey).getBytes());
     }
 }
