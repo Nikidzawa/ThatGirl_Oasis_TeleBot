@@ -105,7 +105,7 @@ PEACE: Пользователь помилован
 SEND_ERROR: Пожалуйста, опишите в деталях проблему с которой вы столкнулись
 
 #EXCEPTIONS
-NOT_GROUP_MEMBER_EXCEPTION: Для продолжения, необходимо вступить в нашу группу t.me/nikidzawa_group
+NOT_GROUP_MEMBER_EXCEPTION: Для продолжения, необходимо вступить в нашу группу t.me/That_Girl_Oasis
 INVALID_FORMAT_EXCEPTION: Формат ответа не поддерживается
 IS_NOT_A_NUMBER_EXCEPTION: Необходимо указать число
 

@@ -29,7 +29,7 @@ import java.util.Optional;
 public class TelegramBot extends TelegramLongPollingBot {
 
     @Override
-    public String getBotUsername() {return "ThatGirl Oasis";}
+    public String getBotUsername() {return "@ThatGirl_Oasis_bot";}
 
     @Override
     public String getBotToken() {return "7008547107:AAF1XURy4dClvFnPOvS_daa3vsWryMBfscQ";}
@@ -108,8 +108,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                 stateMachine.handleInput(StateEnum.LEFT, userId, null, message, false);
             }
         }
-
-        new Thread(() -> checkNewUsers(message, userId)).start();
     }
 
     @SneakyThrows
@@ -119,14 +117,6 @@ public class TelegramBot extends TelegramLongPollingBot {
             botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
             return false;
         }
-    }
-
-    private void checkNewUsers (Message message, Long userId) {
-        message.getNewChatMembers().forEach(chatMember ->
-                dataBaseService.getUserById(chatMember.getId()).ifPresentOrElse(user ->
-                            stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, user, message, true),
-                        () -> stateMachine.handleInput(StateEnum.START,  chatMember.getId(), null, message, false))
-        );
     }
 
     private void userAndStateIdentification (Long userId, Optional<UserEntity> optionalUser, Message message) {
