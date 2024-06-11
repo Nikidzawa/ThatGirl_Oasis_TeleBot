@@ -69,22 +69,17 @@ public class CommandStateMachine {
     private class Start implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (roleStates.allRoles.contains(role)) {
-                optionalUser.ifPresentOrElse(userEntity -> {
-                    if (userEntity.isActive()) {
-                        stateMachine.goToMenu(userId, userEntity);
-                    } else {
-                        stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
-                    }
+            optionalUser.ifPresentOrElse(userEntity -> {
+                if (userEntity.isActive()) {
+                    stateMachine.goToMenu(userId, userEntity);
+                } else stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
                 }, () -> stateMachine.handleInput(StateEnum.START, userId, null, message, false));
-            } else botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
     private class Menu implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (roleStates.allRoles.contains(role)) {
                 optionalUser.ifPresentOrElse(userEntity -> {
                     stateMachine.goToMenu(userId, userEntity);
                     if (!userEntity.isActive()) {
@@ -92,39 +87,34 @@ public class CommandStateMachine {
                         dataBaseService.saveUser(userEntity);
                     }
                 }, () -> botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_REGISTER()));
-            } else botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
     private class Error implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (roleStates.allRoles.contains(role)) {
-                optionalUser.ifPresentOrElse(userEntity -> {
-                    if (!userEntity.isActive()) {
-                        stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
-                        return;
-                    }
-                    cacheService.setState(userId, StateEnum.SEND_ERROR);
-                    botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getSEND_ERROR());
+            optionalUser.ifPresentOrElse(userEntity -> {
+                if (!userEntity.isActive()) {
+                    stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
+                    return;
+                }
+                cacheService.setState(userId, StateEnum.SEND_ERROR);
+                botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getSEND_ERROR());
                 }, () -> botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_REGISTER()));
-            } else botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 
     private class FAQ implements CommandState {
         @Override
         public void handleInput(long userId, Message message, String role, Optional<UserEntity> optionalUser) {
-            if (roleStates.allRoles.contains(role)) {
-                optionalUser.ifPresentOrElse(userEntity -> {
-                    if (!userEntity.isActive()) {
-                        stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
-                        return;
-                    }
-                    botFunctions.sendMessageAndKeyboard(userId, messages.getFAQ(), botFunctions.faqButtons());
-                    cacheService.setState(userId, StateEnum.FAQ);
+            optionalUser.ifPresentOrElse(userEntity -> {
+                if (!userEntity.isActive()) {
+                    stateMachine.handleInput(StateEnum.WELCOME_BACK, userId, userEntity, message, true);
+                    return;
+                }
+                botFunctions.sendMessageAndKeyboard(userId, messages.getFAQ(), botFunctions.faqButtons());
+                cacheService.setState(userId, StateEnum.FAQ);
                 }, () -> botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_REGISTER()));
-            } else botFunctions.sendMessageNotRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
         }
     }
 

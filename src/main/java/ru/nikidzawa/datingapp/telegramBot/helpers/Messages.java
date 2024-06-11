@@ -59,8 +59,6 @@ public class Messages {
     String LEFT;
 
     //EXCEPTIONS
-    @Value("${NOT_GROUP_MEMBER_EXCEPTION}")
-    String NOT_GROUP_MEMBER_EXCEPTION;
     @Value("${INVALID_FORMAT_EXCEPTION}")
     String INVALID_FORMAT_EXCEPTION;
     @Value("${IS_NOT_A_NUMBER_EXCEPTION}")
