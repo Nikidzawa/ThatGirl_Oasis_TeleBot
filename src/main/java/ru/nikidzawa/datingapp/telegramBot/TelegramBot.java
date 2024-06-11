@@ -110,7 +110,11 @@ public class TelegramBot extends TelegramLongPollingBot {
              optionalUser.ifPresentOrElse(user -> {
                 if (user.isActive()) {
                     if (message.hasText() && menuButtons.contains(message.getText())) {
-                        stateMachine.goToMenu(userId, user);
+                        if (user.getLikesGiven().isEmpty()) {
+                            stateMachine.handleInput(StateEnum.MENU, userId, user, message, true);
+                        } else {
+                            stateMachine.handleInput(StateEnum.SUPER_MENU, userId, user, message, true);
+                        }
                     } else {
                         botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getWAIT_TIME_OUT_EXCEPTION());
                         stateMachine.goToMenu(userId, user);
