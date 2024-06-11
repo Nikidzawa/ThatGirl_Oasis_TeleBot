@@ -95,27 +95,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         Optional<UserEntity> optionalUser = dataBaseService.getUserById(userId);
         ChatMember chatMember = botFunctions.getChatMember(userId);
         String role = chatMember.getStatus();
-        if (!message.isSuperGroupMessage()) {
-             if (message.hasText() && message.getText().startsWith("/")) {
-                commandStateMachine.handleInput(userId, message, role, optionalUser);
+        if (message.isUserMessage()) {
+             if (message.isCommand()) {
+                 commandStateMachine.handleInput(userId, message, role, optionalUser);
             } else {
-                if (isSubscribe(userId, role)) {
-                    userAndStateIdentification(userId, optionalUser, message);
-                }
+                 userAndStateIdentification(userId, optionalUser, message);
             }
-        } else {
-            if (role.equals("left")) {
-                stateMachine.handleInput(StateEnum.LEFT, userId, null, message, false);
-            }
-        }
-    }
-
-    @SneakyThrows
-    private boolean isSubscribe (Long userId, String role) {
-        if (roleStates.allRoles.contains(role)) {return true;}
-        else {
-            botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getNOT_GROUP_MEMBER_EXCEPTION());
-            return false;
         }
     }
 
@@ -125,11 +110,7 @@ public class TelegramBot extends TelegramLongPollingBot {
              optionalUser.ifPresentOrElse(user -> {
                 if (user.isActive()) {
                     if (message.hasText() && menuButtons.contains(message.getText())) {
-                        if (user.getLikesGiven().isEmpty()) {
-                         stateMachine.handleInput(StateEnum.MENU, userId, user, message, true);
-                        } else {
-                            stateMachine.handleInput(StateEnum.SUPER_MENU, userId, user, message, true);
-                        }
+                        stateMachine.goToMenu(userId, user);
                     } else {
                         botFunctions.sendMessageAndRemoveKeyboard(userId, messages.getWAIT_TIME_OUT_EXCEPTION());
                         stateMachine.goToMenu(userId, user);
