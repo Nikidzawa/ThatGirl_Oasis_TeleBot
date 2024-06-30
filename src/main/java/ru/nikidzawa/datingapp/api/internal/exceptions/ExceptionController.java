@@ -39,4 +39,12 @@ public class ExceptionController {
                         .message(ex.getMessage())
                         .build());
     }
+    @ExceptionHandler(OtherException.class)
+    public ResponseEntity<ExceptionEntity> handleOtherException(OtherException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ExceptionEntity.builder()
+                        .code(HttpStatus.CONFLICT.value())
+                        .message(ex.getMessage())
+                        .build());
+    }
 }
